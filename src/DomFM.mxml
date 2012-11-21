@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+					   xmlns:s="library://ns.adobe.com/flex/spark" 
+					   xmlns:mx="library://ns.adobe.com/flex/mx" creationComplete="windowedapplication1_creationCompleteHandler(event)">
+	<fx:Script>
+		<![CDATA[
+			import flash.utils.getTimer;
+			import flash.utils.setTimeout;
+			
+			import mx.events.FlexEvent;
+			
+			private var nativeProcess:NativeProcess = new NativeProcess();
+			protected function windowedapplication1_creationCompleteHandler(event:FlexEvent):void
+			{
+				
+//				nativeProcess.addEventListener(NativeProcessExitEvent.EXIT,onComp);
+//				nativeProcess.addEventListener(ProgressEvent.STANDARD_OUTPUT_DATA,onStandardOutput);
+//				nativeProcess.addEventListener(ProgressEvent.STANDARD_ERROR_DATA,onStandardOutput);
+//				nativeProcess.addEventListener(Event.STANDARD_OUTPUT_CLOSE,onOutputClose);
+//				nativeProcess.addEventListener(Event.STANDARD_ERROR_CLOSE,onOutputClose);
+//				
+//				var startupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
+//				startupInfo.workingDirectory = File.applicationDirectory;
+//				startupInfo.executable = File.applicationDirectory.resolvePath("/usr/bin/curl");
+//				startupInfo.arguments = new Vector.<String>();
+//				startupInfo.arguments.push("-e");
+//				startupInfo.arguments.push("http://y.qq.com/");
+//				startupInfo.arguments.push("-b");
+//				startupInfo.arguments.push("qqmusic_uin=12345678;qqmusic_key=12345678;qqmusic_fromtag=30");
+//				startupInfo.arguments.push("http://stream13.qqmusic.qq.com/3013141.mp3");
+//				nativeProcess.start(startupInfo);
+				//http://shopcgi.qqmusic.qq.com/fcgi-bin/shopsearch.fcg?type=qry_song&value=
+			}
+			
+			protected function onComp(event:NativeProcessExitEvent):void
+			{
+				FileUtil.save("3.mp3",bytes);
+				trace(cmdErrorStr);
+			}
+			
+			protected function onOutputClose(event:Event):void
+			{
+				
+			}
+			
+			private var bytes:ByteArray = new ByteArray();
+			private var cmdErrorStr:String = "";
+			protected function onStandardOutput(event:ProgressEvent):void
+			{
+				if(event.type==ProgressEvent.STANDARD_OUTPUT_DATA)
+				{
+					var data:IDataInput = nativeProcess.standardOutput;
+					data.readBytes(bytes,bytes.length);
+					if(!sc)
+					{
+						startPlay();
+					}
+				}
+				else
+				{
+					var error:IDataInput = nativeProcess.standardError;
+					cmdErrorStr += error.readMultiByte(error.bytesAvailable,"cn-gb");
+				}
+			}
+			
+			private var sound:Sound;
+			
+			private var pos:int = 0;
+			private var sc:SoundChannel;
+			private function startPlay(event:Event=null):void
+			{
+				if(pos==0)
+					sound = new Sound();
+				bytes.position = pos;
+				if(bytes.bytesAvailable==0)
+				{
+					pos = 0;
+					return;
+				}
+				sound.loadCompressedDataFromByteArray(bytes,bytes.length-pos);
+				pos = bytes.length;
+				sc = sound.play(sc?sc.position:0);
+				if(sc)
+					sc.addEventListener(Event.SOUND_COMPLETE,startPlay);
+			}
+			
+			
+			protected function search_clickHandler(event:MouseEvent):void
+			{
+				SearchService.getInstance().search(keyword.text);
+			}
+			
+		]]>
+	</fx:Script>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<s:TextInput id="keyword" x="43" y="23" text="千年之恋"/>
+	<s:Button id="search" x="196" y="24" label="search" click="search_clickHandler(event)"/>
+	<s:List id="result" x="32" y="53"></s:List>
+</s:WindowedApplication>
