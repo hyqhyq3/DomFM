@@ -1,101 +1,176 @@
 <?xml version="1.0" encoding="utf-8"?>
-<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
-					   xmlns:s="library://ns.adobe.com/flex/spark" 
-					   xmlns:mx="library://ns.adobe.com/flex/mx" creationComplete="windowedapplication1_creationCompleteHandler(event)">
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:mx="library://ns.adobe.com/flex/mx" showStatusBar="false"
+					   width="420" height="185" backgroundColor="#CFCFCF" initialize="windowedapplication1_initializeHandler(event)">
+	<fx:Style source="style.css"/>
 	<fx:Script>
 		<![CDATA[
-			import flash.utils.getTimer;
-			import flash.utils.setTimeout;
+			import com.domlib.domFM.action.ID3Parser;
+			import com.domlib.domFM.action.Player;
+			import com.domlib.domFM.data.ID3Tag;
+			import com.domlib.domFM.events.ID3Event;
+			import com.domlib.domFM.events.PlayEvent;
+			import com.domlib.domFM.utils.FileUtil;
+			import com.domlib.domFM.utils.SQL;
+			import com.domlib.domFM.utils.StringUtil;
 			
+			import mx.charts.AreaChart;
 			import mx.events.FlexEvent;
 			
-			private var nativeProcess:NativeProcess = new NativeProcess();
-			protected function windowedapplication1_creationCompleteHandler(event:FlexEvent):void
-			{
-				
-//				nativeProcess.addEventListener(NativeProcessExitEvent.EXIT,onComp);
-//				nativeProcess.addEventListener(ProgressEvent.STANDARD_OUTPUT_DATA,onStandardOutput);
-//				nativeProcess.addEventListener(ProgressEvent.STANDARD_ERROR_DATA,onStandardOutput);
-//				nativeProcess.addEventListener(Event.STANDARD_OUTPUT_CLOSE,onOutputClose);
-//				nativeProcess.addEventListener(Event.STANDARD_ERROR_CLOSE,onOutputClose);
-//				
-//				var startupInfo:NativeProcessStartupInfo = new NativeProcessStartupInfo();
-//				startupInfo.workingDirectory = File.applicationDirectory;
-//				startupInfo.executable = File.applicationDirectory.resolvePath("/usr/bin/curl");
-//				startupInfo.arguments = new Vector.<String>();
-//				startupInfo.arguments.push("-e");
-//				startupInfo.arguments.push("http://y.qq.com/");
-//				startupInfo.arguments.push("-b");
-//				startupInfo.arguments.push("qqmusic_uin=12345678;qqmusic_key=12345678;qqmusic_fromtag=30");
-//				startupInfo.arguments.push("http://stream13.qqmusic.qq.com/3013141.mp3");
-//				nativeProcess.start(startupInfo);
-				//http://shopcgi.qqmusic.qq.com/fcgi-bin/shopsearch.fcg?type=qry_song&value=
-			}
 			
-			protected function onComp(event:NativeProcessExitEvent):void
+			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
-				FileUtil.save("3.mp3",bytes);
-				trace(cmdErrorStr);
+				this.nativeApplication.addEventListener(Event.EXITING,onExiting);
 			}
-			
-			protected function onOutputClose(event:Event):void
+			/**
+			 * 应用程序退出
+			 */	
+			protected function onExiting(event:Event):void
 			{
-				
-			}
-			
-			private var bytes:ByteArray = new ByteArray();
-			private var cmdErrorStr:String = "";
-			protected function onStandardOutput(event:ProgressEvent):void
-			{
-				if(event.type==ProgressEvent.STANDARD_OUTPUT_DATA)
+				if(player)
 				{
-					var data:IDataInput = nativeProcess.standardOutput;
-					data.readBytes(bytes,bytes.length);
-					if(!sc)
+					player.exit();
+				}
+				if(id3Parser)
+					id3Parser.exit();
+			}
+			
+			private var player:Player;
+			/**
+			 * 播放下一首
+			 */	
+			private function playNext():void
+			{
+				if(!player)
+				{
+					player = new Player();
+					player.addEventListener(PlayEvent.PLAY_COMPLETE,onPlayComp);
+					player.addEventListener(PlayEvent.PLAY_PROGRESS,onPlayProgress);
+				}
+				var song:Object = getSongByRandom();
+				if(song&&song.url)
+				{
+					player.playSong(song.url);
+					titleLabel.text = song.title+" - "+song.artist;
+					nativeWindow.title = song.title+" - DomFM";
+					timeLabel.text = "00:00";
+				}
+			}
+			
+			/**
+			 * 获取一条音乐记录
+			 */	
+			private function getSongByRandom():Object
+			{
+				var result:Array = sql.execute("select  Min(count) as count From  song");
+				var minCount:Number = Number(result[0].count);
+				if(isNaN(minCount))
+					minCount = 0;
+				result = sql.execute("select * from song where count="+minCount+" order by random() limit 1;");
+				if(result)
+					return result[0];
+				return null;
+			}
+			/**
+			 * 播放进度
+			 */	
+			private function onPlayProgress(event:PlayEvent):void
+			{
+				timeLabel.text = StringUtil.toTimeString(event.palyedTime);
+			}
+			/**
+			 * 一首歌播放完成
+			 */	
+			private function onPlayComp(event:PlayEvent):void
+			{
+				sql.execute("update song set count = count+1 where url='"+SQL.escape(event.url)+"';");
+				playNext();
+			}
+			/**
+			 * 跳过按钮点击
+			 */	
+			protected function skipBT_clickHandler(event:MouseEvent):void
+			{
+				playNext();
+			}
+			/**
+			 * id3解析器
+			 */	
+			private var id3Parser:ID3Parser;
+			/**
+			 * 添加按钮点击
+			 */	
+			protected function addBtn_clickHandler(event:MouseEvent):void
+			{
+				FileUtil.browseForOpen(function(file:File):void{
+					var list:Array = FileUtil.search(file.nativePath,null,filterFunc);
+					var urlList:Array = [];
+					for each(var file:File in list)
 					{
-						startPlay();
+						urlList.push(file.nativePath);
 					}
-				}
-				else
-				{
-					var error:IDataInput = nativeProcess.standardError;
-					cmdErrorStr += error.readMultiByte(error.bytesAvailable,"cn-gb");
-				}
+					if(!id3Parser)
+					{
+						id3Parser = new ID3Parser;
+						id3Parser.addEventListener(ID3Event.GET_ONE_INFO,onGetMusicInfo);
+					}
+					id3Parser.parse(urlList);
+				},3);
 			}
 			
-			private var sound:Sound;
-			
-			private var pos:int = 0;
-			private var sc:SoundChannel;
-			private function startPlay(event:Event=null):void
+			private var sql:SQL = new SQL("music.db");
+			/**
+			 * 插入一条音乐记录到数据库
+			 */	
+			private function onGetMusicInfo(event:ID3Event):void
 			{
-				if(pos==0)
-					sound = new Sound();
-				bytes.position = pos;
-				if(bytes.bytesAvailable==0)
-				{
-					pos = 0;
+				var result:Array = sql.execute("select title from song where url='"+SQL.escape(event.url)+"'");
+				if(result&&result.length>0)
 					return;
+				var id3:ID3Tag = event.tagInfo;
+				if(!id3.title)
+				{
+					id3.title = FileUtil.getFileName(event.url);
 				}
-				sound.loadCompressedDataFromByteArray(bytes,bytes.length-pos);
-				pos = bytes.length;
-				sc = sound.play(sc?sc.position:0);
-				if(sc)
-					sc.addEventListener(Event.SOUND_COMPLETE,startPlay);
+				var type:String = FileUtil.getExtension(event.url);
+				sql.execute("insert into song (title,artist,url,type,favor,count) values('"+
+					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(event.url)+"','"+
+					SQL.escape(type)+"',0,0);");
+				trace(id3.title,id3.artist);
 			}
 			
-			
-			protected function search_clickHandler(event:MouseEvent):void
+			/**
+			 * 文件过滤回调函数
+			 */	
+			private function filterFunc(file:File):Boolean
 			{
-				SearchService.getInstance().search(keyword.text);
+				if(file.isDirectory)
+					return true;
+				if(file.extension==null)
+					return false;
+				var extension:String = file.extension.toLowerCase();
+				if(extension=="mp3"||extension=="m4a"||extension=="wma")
+					return true;
+				return false;
 			}
 			
 		]]>
 	</fx:Script>
 	<fx:Declarations>
-		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
 	</fx:Declarations>
-	<s:TextInput id="keyword" x="43" y="23" text="千年之恋"/>
-	<s:Button id="search" x="196" y="24" label="search" click="search_clickHandler(event)"/>
-	<s:List id="result" x="32" y="53"></s:List>
+	<s:Image id="cover" x="33" y="33" width="120" height="120" scaleMode="zoom"/>
+	<s:Group x="180" y="55" width="215" height="45">
+		<s:Rect width="100%" height="100%">
+			<s:fill>
+				<s:SolidColor color="#ddeee1"/>
+			</s:fill>
+		</s:Rect>
+		<s:Label id="titleLabel" x="8" y="27" color="#666666" fontWeight="normal"/>
+		<s:Label id="timeLabel" x="8" y="5" color="#666666" fontWeight="bold" text="00:00"/>
+	</s:Group>
+	<s:Button id="likeBT" x="200" y="115" width="45" height="45" label="喜欢"/>
+	<s:Button id="skipBT" x="333" y="115" width="45" height="45" label="跳过" click="skipBT_clickHandler(event)"/>
+	<s:Button id="banBT" x="267" y="115" width="45" height="45" label="垃圾"/>
+	<s:Button x="364" y="10" width="46" label="添加" click="addBtn_clickHandler(event)"/>
 </s:WindowedApplication>

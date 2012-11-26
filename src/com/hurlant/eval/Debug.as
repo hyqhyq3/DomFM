@@ -5,33 +5,36 @@ package com.hurlant.eval
 	public class Debug
 	{
 
-		static var nesting = 0;
+		public static var nesting:int = 0;
 
 		static private var _logger:ILogger = null;
 		static public function set logger(value:ILogger):void {
 			_logger = value;
 		}
 		
-		static function arrows (c)
-		    : String {
-		    var str = "";
-		    for ( var n = nesting; n > 0; n = n - 1 ) {
+		public static function arrows (c:*): String 
+		{
+		    var str:String = "";
+		    for ( var n:int = nesting; n > 0; n = n - 1 ) {
 		        str = str + c;
 		    }
 		    return nesting + " " + str+" ";
 		}
 		
-		public static function enter (s,a="") {
+		public static function enter (s:*,a:*=""):void
+		{
 		    nesting = nesting + 1;
 		    //print (arrows(">"), s, a);
 		}
 		
-		public static function exit (s,a="") {
+		public static function exit (s:*,a:*=""):void
+		{
 		    //print (arrows("<"), s, a);
 		    nesting = nesting - 1;
 		}
 
-		public static function assert (bool) {
+		public static function assert (bool:Boolean):void
+		{
 			if (!bool) {
 				throw ("Assert failed.");
 			}
