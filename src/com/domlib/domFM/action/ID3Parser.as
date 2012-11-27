@@ -98,9 +98,15 @@ package com.domlib.domFM.action
 			var data:IDataInput = nativeProcess.standardOutput;
 			var str:String = data.readMultiByte(data.bytesAvailable,"cn-gb");
 			cmdOutStr += str;
+			trace(str);
 			if(str.indexOf("[EOF]")!=-1)
 			{
 				oneComplete(str);
+				cmdOutStr = "";
+				parseOne();
+			}
+			else if(str.indexOf("输入音频的路径或格式无效!")!=-1)
+			{
 				cmdOutStr = "";
 				parseOne();
 			}
