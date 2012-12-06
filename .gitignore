@@ -12,3 +12,4 @@ bin/
 .flexLibProperties
 *.air
 /libs
+/DomFM.exe
