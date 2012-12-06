@@ -313,7 +313,8 @@
 	</fx:Script>
 	<fx:Declarations>
 	</fx:Declarations>
-	<s:Image id="cover" x="32" y="30" width="120" height="120" scaleMode="zoom"/>
+	<s:Image id="cover" x="32" y="30" width="120" height="120" scaleMode="zoom"
+			 source="http://imgcache.qq.com/music/photo/singer/58/singerpic_4558_0.jpg"/>
 	<s:BitmapImage x="32" y="30" width="120" height="120" source="@Embed('com/domlib/domFM/skins/assets/coverBg.png')"/>
 	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
 		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
