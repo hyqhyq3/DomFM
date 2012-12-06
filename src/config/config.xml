@@ -1,0 +1,4 @@
+<root>
+	<sync></sync><!-- 上传数据库文件的脚本地址 -->
+	<download></download><!-- 数据库文件下载地址 -->
+</root>

@@ -72,7 +72,6 @@ package com.domlib.domFM.action
 			var bytes:ByteArray = loader.data;
 			bytes.position = 0;
 			var str:String = bytes.readMultiByte(bytes.bytesAvailable,"cn-gb");
-			trace(str);
 			var index:int = str.indexOf("album_id");
 			var url:String = "";
 			if(index!=-1)

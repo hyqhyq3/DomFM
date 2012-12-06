@@ -46,6 +46,17 @@ package com.domlib.domFM.utils
 			}
 			return [{}];
 		}
+		/**
+		 * 关闭数据库
+		 */		
+		public function close():void
+		{
+			try
+			{
+				sqlc.close();
+			}
+			catch(e:Error){}
+		}
 		
 		public static function escape(str:String):String
 		{
