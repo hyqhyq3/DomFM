@@ -52,12 +52,16 @@ package com.domlib.domFM.action
 					sound.close();
 				}
 				catch(e:Error){}
+				sound = null;
 			}
 			if(sc)
 			{
 				sc.removeEventListener(Event.SOUND_COMPLETE,onPlayComp);
 				sc.stop();
+				sc = null;
 			}
+			if(timer.running)
+				timer.stop();
 		}
 		
 		private var currentPath:String;
@@ -69,10 +73,10 @@ package com.domlib.domFM.action
 		 */		
 		public function playSong(url:String):void
 		{
+			currentPath = url;
+			exit();
 			if(!url)
 				return;
-			exit();
-			currentPath = url;
 			sound = new Sound(new URLRequest(url));
 			sc = sound.play();
 			if(sc)
@@ -80,6 +84,33 @@ package com.domlib.domFM.action
 				sc.soundTransform.volume = 1;
 				sc.addEventListener(Event.SOUND_COMPLETE,onPlayComp);
 			}
+			if(!timer.running)
+				timer.start();
+		}
+		
+		private var pausePos:Number = 0;
+		/**
+		 * 暂停播放
+		 */		
+		public function pause():void
+		{
+			if(!sc)
+				return;
+			pausePos = sc.position;
+			sc.removeEventListener(Event.SOUND_COMPLETE,onPlayComp);
+			sc.stop();
+			if(timer.running)
+				timer.stop();
+		}
+		/**
+		 * 继续播放
+		 */		
+		public function resume():void
+		{
+			if(!sc)
+				return;
+			sc = sound.play(pausePos);
+			sc.addEventListener(Event.SOUND_COMPLETE,onPlayComp);
 			if(!timer.running)
 				timer.start();
 		}

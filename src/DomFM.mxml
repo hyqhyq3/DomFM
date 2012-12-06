@@ -6,6 +6,7 @@
 	<fx:Style source="style.css"/>
 	<fx:Script>
 		<![CDATA[
+			import com.domlib.domFM.action.HotKey;
 			import com.domlib.domFM.action.ID3Parser;
 			import com.domlib.domFM.action.Player;
 			import com.domlib.domFM.data.ID3Tag;
@@ -21,9 +22,12 @@
 			import mx.events.FlexEvent;
 			import mx.events.FlexNativeWindowBoundsEvent;
 			
+			private var hotKey:HotKey;
 			
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
+				hotKey = new HotKey();
+				hotKey.addEventListener(KeyboardEvent.KEY_DOWN,onKeyDown);
 				this.nativeApplication.addEventListener(Event.EXITING,onExiting);
 			}
 			/**
@@ -31,6 +35,10 @@
 			 */	
 			protected function onExiting(event:Event):void
 			{
+				if(hotKey)
+				{
+					hotKey.exit();
+				}
 				if(player)
 				{
 					player.exit();
@@ -40,6 +48,8 @@
 			}
 			
 			private var player:Player;
+			
+			private var currentUrl:String;
 			/**
 			 * 播放下一首
 			 */	
@@ -54,13 +64,14 @@
 				var song:Object = getSongByRandom();
 				if(song&&song.url)
 				{
-					var url:String = getPortableUrl(song.url);
-					if(!url)
+					currentUrl = getPortableUrl(song.url);
+					if(!currentUrl)
 					{
 						playNext();
 						return;
 					}
-					player.playSong(url);
+					player.playSong(currentUrl);
+					favorBtn.selected = (song.favor=="1");
 					titleLabel.text = song.title+" - "+song.artist;
 					title = song.title+" - DomFM";
 					timeLabel.text = "00:00";
@@ -91,11 +102,18 @@
 			 */	
 			private function getSongByRandom():Object
 			{
-				var result:Array = sql.execute("select  Min(count) as count From  song");
+				var result:Array;
+				if(playILike)
+					result= sql.execute("select  Min(count) as count From  song where favor=1");
+				else
+					result= sql.execute("select  Min(count) as count From  song");
 				var minCount:Number = Number(result[0].count);
 				if(isNaN(minCount))
 					minCount = 0;
-				result = sql.execute("select * from song where count="+minCount+" order by random() limit 1;");
+				if(playILike)
+					result = sql.execute("select * from song where count="+minCount+" and favor=1 order by random() limit 1;");
+				else
+					result = sql.execute("select * from song where count="+minCount+" and favor<>-1 order by random() limit 1;");
 				if(result)
 					return result[0];
 				return null;
@@ -118,8 +136,9 @@
 			/**
 			 * 跳过按钮点击
 			 */	
-			protected function skipBT_clickHandler(event:MouseEvent):void
+			protected function skipBT_clickHandler(event:MouseEvent=null):void
 			{
+				sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentUrl)+"';");
 				playNext();
 			}
 			/**
@@ -187,6 +206,9 @@
 			{
 				var windowX:Number = SharedObjectTool.read(applicationID,"windowX");
 				var windowY:Number = SharedObjectTool.read(applicationID,"windowY");
+				playILike = SharedObjectTool.read(applicationID,"playILike");
+				channelBtn.selected = playILike;
+				channelLabel.text = playILike?"我喜欢的":"所有音乐";
 				if(isNaN(windowX))
 					windowX = (Capabilities.screenResolutionX - width)*0.5;
 				if(isNaN(windowY))
@@ -207,22 +229,118 @@
 				SharedObjectTool.write(applicationID,"windowY",nativeWindow.y);
 			}
 			
+			protected function onKeyDown(event:KeyboardEvent):void
+			{
+				if(!initialized)
+					return;
+				timeLabel.text += event.keyCode+" ";
+				if(event.ctrlKey&&event.altKey)
+				{
+					switch(event.keyCode)
+					{
+						case Keyboard.RIGHT:
+							skipBT_clickHandler();
+							break;
+						case Keyboard.LEFT:
+							favorBtn.selected = true;
+							likeBT_changeHandler();
+							break;
+						case Keyboard.F11:
+							favorBtn.selected = false;
+							likeBT_changeHandler();
+							break;
+						case Keyboard.F12:
+							banBT_clickHandler();
+							break;
+						case Keyboard.F5:
+							pauseMask.visible = !pauseMask.visible;
+							if(pauseMask.visible)
+							{
+								player.pause();
+							}
+							else
+							{
+								player.resume();
+							}
+							break;
+					}
+				}
+			}
+			
+			private function likeBT_changeHandler(event:Event=null):void
+			{
+				var favor:String = favorBtn.selected?"1":"0";
+				sql.execute("update song set favor = "+favor+" where url='"+SQL.escape(currentUrl)+"';");
+			}
+			
+			protected function banBT_clickHandler(event:MouseEvent=null):void
+			{
+				sql.execute("update song set favor = -1 where url='"+SQL.escape(currentUrl)+"';");
+				playNext();
+			}
+			
+			
+			
+			protected function pauseMask_clickHandler(event:MouseEvent=null):void
+			{
+				pauseMask.visible = false;
+				if(player)
+				{
+					player.resume();
+				}
+			}
+			
+			protected function group1_clickHandler(event:MouseEvent=null):void
+			{
+				pauseMask.visible = true;
+				if(player)
+				{
+					player.pause();
+				}
+			}
+			
+			private var playILike:Boolean = false;
+			
+			protected function togglebutton1_changeHandler(event:Event):void
+			{
+				playILike = channelBtn.selected;
+				channelLabel.text = playILike?"我喜欢的":"所有音乐";
+				SharedObjectTool.write(applicationID,"playILike",playILike);
+				playNext();
+			}
+			
 		]]>
 	</fx:Script>
 	<fx:Declarations>
 	</fx:Declarations>
-	<s:Image id="cover" x="33" y="33" width="120" height="120" scaleMode="zoom"/>
-	<s:Group x="180" y="55" width="215" height="45">
-		<s:Rect width="100%" height="100%">
-			<s:fill>
-				<s:SolidColor color="#ddeee1"/>
-			</s:fill>
-		</s:Rect>
+	<s:Image id="cover" x="32" y="30" width="120" height="120" scaleMode="zoom"/>
+	<s:BitmapImage x="32" y="30" width="120" height="120" source="@Embed('com/domlib/domFM/skins/assets/coverBg.png')"/>
+	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
+		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
 		<s:Label id="titleLabel" showTruncationTip="true" maxDisplayedLines="1" x="8" y="27" width="200" color="#666666" fontWeight="normal"/>
 		<s:Label id="timeLabel" x="8" y="5" color="#666666" fontWeight="bold" text="00:00"/>
+		<s:Label id="channelLabel" x="162" y="7" color="#FFFFFF" text="所有音乐"/>
 	</s:Group>
-	<s:Button id="likeBT" x="200" y="115" width="45" height="45" label="喜欢"/>
-	<s:Button id="skipBT" x="333" y="115" width="45" height="45" label="跳过" click="skipBT_clickHandler(event)"/>
-	<s:Button id="banBT" x="267" y="115" width="45" height="45" label="垃圾"/>
-	<s:Button x="364" y="10" width="46" label="添加" click="addBtn_clickHandler(event)"/>
+	
+	<s:ToggleButton useHandCursor="true" buttonMode="true" toolTip="我喜欢" id="favorBtn" x="254" y="123" width="40" height="40"
+					change="likeBT_changeHandler(event)"
+					skinClass="com.domlib.domFM.skins.FavorButtonSkin"/>
+	<s:Button useHandCursor="true" buttonMode="true" toolTip="跳过" id="skipBT" x="356" y="123" width="40" height="40"
+			  click="skipBT_clickHandler(event)" skinClass="com.domlib.domFM.skins.NextButtonSkin"/>
+	<s:Button useHandCursor="true" buttonMode="true" id="banBT" toolTip="不再播放" x="305" y="123" width="40" height="40"
+			  click="banBT_clickHandler(event)" skinClass="com.domlib.domFM.skins.BanButtonSkin"/>
+	<s:Group id="pauseMask" useHandCursor="true" mouseChildren="false" buttonMode="true" width="100%" height="100%" visible="false" click="pauseMask_clickHandler(event)">
+		<s:Rect width="100%" height="100%">
+			<s:fill>
+				<s:SolidColor color="0xFFFFFF" alpha="0.6"/>
+			</s:fill>
+		</s:Rect>
+		<s:Rect width="100" height="35" radiusX="4" radiusY="4" horizontalCenter="0" verticalCenter="0">
+			<s:fill>
+				<s:SolidColor color="0x808080"/>
+			</s:fill>
+		</s:Rect>
+		<s:Label color="#FFFFFF" horizontalCenter="0" text="继续收听" verticalCenter="0"/>
+	</s:Group>
+	<s:ToggleButton id="channelBtn" toolTip="切换列表" useHandCursor="true" buttonMode="true" change="togglebutton1_changeHandler(event)" x="361" y="22" skinClass="com.domlib.domFM.skins.ChangeButtonSkin"/>
 </s:WindowedApplication>
