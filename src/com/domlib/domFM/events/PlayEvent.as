@@ -25,13 +25,9 @@ package com.domlib.domFM.events
 			super(type, bubbles, cancelable);
 		}
 		/**
-		 * 已经播放的时间
+		 * 已经播放的时间,以毫秒为单位
 		 */		
-		public var palyedTime:Number;
-		/**
-		 * 总时间
-		 */		
-		public var totalTime:Number;
+		public var playedTime:Number;
 		/**
 		 * 正在播放的音乐路径
 		 */		

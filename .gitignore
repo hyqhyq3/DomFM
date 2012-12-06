@@ -13,3 +13,10 @@ bin/
 *.air
 /libs
 /DomFM.exe
+/src/tool/mplayer/mplayer
+/src/tool/mplayer/mplayer.exe
+.flexProperties
+.actionScriptProperties
+/.settings
+/.fxpProperties
+/.project

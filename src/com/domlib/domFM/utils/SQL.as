@@ -19,7 +19,7 @@ package com.domlib.domFM.utils
 			var db:File = File.applicationDirectory.resolvePath(dbPath);
 			sqlc.open(db);
 			sqls.sqlConnection = sqlc;
-			sqls.text = "CREATE TABLE IF NOT EXISTS song( id INTEGER PRIMARY KEY AUTOINCREMENT, title, artist, url, type, favor, count);";
+			sqls.text = "CREATE TABLE IF NOT EXISTS song( id INTEGER PRIMARY KEY AUTOINCREMENT, title, artist, url, type, favor, count,skip);";
 			sqls.execute();
 		}
 		/**

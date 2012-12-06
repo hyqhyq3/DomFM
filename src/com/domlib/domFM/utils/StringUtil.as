@@ -105,10 +105,11 @@ package com.domlib.domFM.utils
 			return sizeStr;
 		}
 		/**
-		 * 把时间(秒)转换为字符串
+		 * 把时间(毫秒)转换为字符串
 		 */		
 		public static function toTimeString(time:Number):String
 		{
+			time = Math.round(time/1000);
 			var miniute:String = "00";
 			if(time>60)
 			{

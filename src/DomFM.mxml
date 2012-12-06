@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
-					   xmlns:s="library://ns.adobe.com/flex/spark"
+					   xmlns:s="library://ns.adobe.com/flex/spark" windowComplete="windowedapplication1_windowCompleteHandler(event)"
 					   xmlns:mx="library://ns.adobe.com/flex/mx" showStatusBar="false"
 					   width="420" height="185" backgroundColor="#CFCFCF" initialize="windowedapplication1_initializeHandler(event)">
 	<fx:Style source="style.css"/>
@@ -13,10 +13,13 @@
 			import com.domlib.domFM.events.PlayEvent;
 			import com.domlib.domFM.utils.FileUtil;
 			import com.domlib.domFM.utils.SQL;
+			import com.domlib.domFM.utils.SharedObjectTool;
 			import com.domlib.domFM.utils.StringUtil;
 			
 			import mx.charts.AreaChart;
+			import mx.events.AIREvent;
 			import mx.events.FlexEvent;
+			import mx.events.FlexNativeWindowBoundsEvent;
 			
 			
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
@@ -51,13 +54,38 @@
 				var song:Object = getSongByRandom();
 				if(song&&song.url)
 				{
-					player.playSong(song.url);
+					var url:String = getPortableUrl(song.url);
+					if(!url)
+					{
+						playNext();
+						return;
+					}
+					player.playSong(url);
 					titleLabel.text = song.title+" - "+song.artist;
-					nativeWindow.title = song.title+" - DomFM";
+					title = song.title+" - DomFM";
 					timeLabel.text = "00:00";
 				}
 			}
 			
+			private var driverLetters:Array = ["C","D","E","F","G","H","I","J","K","L"];
+			
+			private function getPortableUrl(url:String):String
+			{
+				try
+				{
+					if(new File(url).exists)
+						return url;
+				}
+				catch(e:Error){}
+				
+				url = url.substring(1);
+				for each(var letter:String in driverLetters)
+				{
+					if(new File(letter+url).exists)
+						return letter+url;
+				}
+				return "";
+			}
 			/**
 			 * 获取一条音乐记录
 			 */	
@@ -77,7 +105,7 @@
 			 */	
 			private function onPlayProgress(event:PlayEvent):void
 			{
-				timeLabel.text = StringUtil.toTimeString(event.palyedTime);
+				timeLabel.text = StringUtil.toTimeString(event.playedTime);
 			}
 			/**
 			 * 一首歌播放完成
@@ -134,9 +162,9 @@
 					id3.title = FileUtil.getFileName(event.url);
 				}
 				var type:String = FileUtil.getExtension(event.url);
-				sql.execute("insert into song (title,artist,url,type,favor,count) values('"+
+				sql.execute("insert into song (title,artist,url,type,favor,count,skip) values('"+
 					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(event.url)+"','"+
-					SQL.escape(type)+"',0,0);");
+					SQL.escape(type)+"',0,0,0);");
 				trace(id3.title,id3.artist);
 			}
 			
@@ -150,9 +178,33 @@
 				if(file.extension==null)
 					return false;
 				var extension:String = file.extension.toLowerCase();
-				if(extension=="mp3"||extension=="m4a"||extension=="wma")
+				if(extension=="mp3"/*||extension=="m4a"||extension=="wma"*/)
 					return true;
 				return false;
+			}
+			
+			protected function windowedapplication1_windowCompleteHandler(event:AIREvent):void
+			{
+				var windowX:Number = SharedObjectTool.read(applicationID,"windowX");
+				var windowY:Number = SharedObjectTool.read(applicationID,"windowY");
+				if(isNaN(windowX))
+					windowX = (Capabilities.screenResolutionX - width)*0.5;
+				if(isNaN(windowY))
+					windowY = (Capabilities.screenResolutionY - height)*0.5;
+				if(windowX+width>Capabilities.screenResolutionX)
+					windowX = Capabilities.screenResolutionX-width;
+				if(windowY+height>Capabilities.screenResolutionY)
+					windowY = Capabilities.screenResolutionY-height;
+				nativeWindow.x = windowX;
+				nativeWindow.y = windowY;
+				addEventListener(FlexNativeWindowBoundsEvent.WINDOW_MOVE,windowedapplication1_windowMoveHandler);
+				playNext();
+			}
+			
+			protected function windowedapplication1_windowMoveHandler(event:FlexNativeWindowBoundsEvent):void
+			{
+				SharedObjectTool.write(applicationID,"windowX",nativeWindow.x);
+				SharedObjectTool.write(applicationID,"windowY",nativeWindow.y);
 			}
 			
 		]]>
@@ -166,7 +218,7 @@
 				<s:SolidColor color="#ddeee1"/>
 			</s:fill>
 		</s:Rect>
-		<s:Label id="titleLabel" x="8" y="27" color="#666666" fontWeight="normal"/>
+		<s:Label id="titleLabel" showTruncationTip="true" maxDisplayedLines="1" x="8" y="27" width="200" color="#666666" fontWeight="normal"/>
 		<s:Label id="timeLabel" x="8" y="5" color="#666666" fontWeight="bold" text="00:00"/>
 	</s:Group>
 	<s:Button id="likeBT" x="200" y="115" width="45" height="45" label="喜欢"/>
