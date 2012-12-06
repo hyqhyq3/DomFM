@@ -27,27 +27,27 @@ package com.domlib.domFM.action
 			super();
 		}
 		
-		private var url:String = "http://shopcgi.qqmusic.qq.com/fcgi-bin/shopsearch.fcg?value=";
+		private var url:String = "http://shopcgi.qqmusic.qq.com/fcgi-bin/shopsearch.fcg?type=qry_song&out=json&value=";
 		/**
-		 * 回调函数字典
+		 * 回调函数字典  
 		 */		
 		private var compFuncDic:Dictionary = new Dictionary();
 		/**
 		 * 搜索专辑封面
 		 * @param artist 歌手名
-		 * @param album 专辑名
+		 * @param title 歌曲名
 		 * @param compFunc 搜索结果回调函数,示例：compFunc(url:String):void
 		 */		
-		public function searchCover(artist:String,album:String,compFunc:Function):void
+		public function searchCover(artist:String,title:String,compFunc:Function):void
 		{
 			if(compFunc==null)
 				return;
 			var key:String = "";
 			if(artist)
 				key += artist;
-			if(album)
-				key += " "+album;
-			var loader:URLLoader = sendRequest(artist+" "+album);
+			if(title)
+				key += " "+title;
+			var loader:URLLoader = sendRequest("\""+artist+" "+title+"\"");
 			compFuncDic[loader] = compFunc;
 		}
 		/**
@@ -72,19 +72,14 @@ package com.domlib.domFM.action
 			var bytes:ByteArray = loader.data;
 			bytes.position = 0;
 			var str:String = bytes.readMultiByte(bytes.bytesAvailable,"cn-gb");
-			str = str.substring(15,str.length-2);
-			var result:Object = parseObject(str);
-			if(!result)
-			{
-				compFunc("");
-				trace("JSON解析失败："+str);
-				return;
-			}
+			trace(str);
+			var index:int = str.indexOf("album_id");
 			var url:String = "";
-			var song:Object = result.songlist[0];
-			if(song)
+			if(index!=-1)
 			{
-				url = getCoverUrl(song.album_id);
+				str = str.substring(index+10);
+				index = str.indexOf("\"");
+				url = getCoverUrl(str.substring(0,index));
 			}
 			compFunc(url);
 		}
@@ -96,67 +91,6 @@ package com.domlib.domFM.action
 			if(isNaN(id))
 				return "";
 			return coverUrl+(id%100)+"/albumpic_"+albumId+"_0.jpg";
-		}
-		/**
-		 * 解析字符串为Object
-		 */		
-		private function parseObject(result:String):Object
-		{
-			var list:Array = result.split(",");
-			result = "";
-			var itemIndex:int = 0;
-			for each(var item:String in list)
-			{
-				var strs:Array = item.split(":");
-				var index:int = 0;
-				for each(var str:String in strs)
-				{
-					if(index==strs.length-1)
-						result += str;
-					else
-						result += formatStr(str)+":";
-					index++;
-				}
-				if(itemIndex<list.length-1)
-					result += ",";
-				itemIndex++;
-			}
-			
-			result = escape(result);
-			var obj:Object;
-			try
-			{
-				obj = JSON.parse(result);
-			}
-			catch(e:Error){}
-			return obj;
-		}
-		
-		private var htmlContents:Object = {"&acute;":"'","&quot;":"\"",
-			"&amp;":"&","&lt;":"<","&gt;":">","&nbsp;":" "};
-		
-		private function escape(str:String):String
-		{
-			for(var s:String in htmlContents)
-			{
-				str = StringUtil.replaceStr(str,s,htmlContents[s]);
-			}
-			return str;
-		}
-		/**
-		 * 给key加上双引号
-		 */		
-		private function formatStr(str:String):String
-		{
-			var pos:int = 0;
-			while(pos<str.length)
-			{
-				var char:String = str.charAt(pos);
-				if(char!="{"&&char!="[")
-					break;
-				pos++;
-			}
-			return str.substring(0,pos)+"\""+str.substr(pos)+"\"";
 		}
 	}
 }

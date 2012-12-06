@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009"
+<s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" nativeDragEnter="windowedapplication1_nativeDragEnterHandler(event)"
+					   nativeDragDrop="windowedapplication1_nativeDragDropHandler(event)"
 					   xmlns:s="library://ns.adobe.com/flex/spark" windowComplete="windowedapplication1_windowCompleteHandler(event)"
 					   xmlns:mx="library://ns.adobe.com/flex/mx" showStatusBar="false"
 					   width="420" height="185" backgroundColor="#CFCFCF" initialize="windowedapplication1_initializeHandler(event)">
 	<fx:Style source="style.css"/>
 	<fx:Script>
 		<![CDATA[
+			import com.domlib.domFM.action.CurlLoader;
 			import com.domlib.domFM.action.HotKey;
 			import com.domlib.domFM.action.ID3Parser;
 			import com.domlib.domFM.action.Player;
+			import com.domlib.domFM.action.QQMusic;
 			import com.domlib.domFM.data.ID3Tag;
 			import com.domlib.domFM.events.ID3Event;
 			import com.domlib.domFM.events.PlayEvent;
@@ -21,6 +24,7 @@
 			import mx.events.AIREvent;
 			import mx.events.FlexEvent;
 			import mx.events.FlexNativeWindowBoundsEvent;
+			import mx.managers.DragManager;
 			
 			private var hotKey:HotKey;
 			
@@ -28,6 +32,8 @@
 			{
 				hotKey = new HotKey();
 				hotKey.addEventListener(KeyboardEvent.KEY_DOWN,onKeyDown);
+				id3Parser = new ID3Parser;
+				id3Parser.addEventListener(ID3Event.GET_ONE_INFO,onGetMusicInfo);
 				this.nativeApplication.addEventListener(Event.EXITING,onExiting);
 			}
 			/**
@@ -47,9 +53,13 @@
 					id3Parser.exit();
 			}
 			
+			private var qqMusic:QQMusic = new QQMusic;
+			
 			private var player:Player;
 			
-			private var currentUrl:String;
+			private var failTimes:int = 0;
+			
+			private var currentSong:Object;
 			/**
 			 * 播放下一首
 			 */	
@@ -60,22 +70,69 @@
 					player = new Player();
 					player.addEventListener(PlayEvent.PLAY_COMPLETE,onPlayComp);
 					player.addEventListener(PlayEvent.PLAY_PROGRESS,onPlayProgress);
+					player.addEventListener(PlayEvent.PLAY_ERROR,onPlayError);
 				}
 				var song:Object = getSongByRandom();
 				if(song&&song.url)
 				{
-					currentUrl = getPortableUrl(song.url);
-					if(!currentUrl)
+					var url:String = getPortableUrl(song.url);
+					if(!url)
 					{
-						playNext();
+						failTimes++;
+						if(failTimes<10)
+						{
+							playNext();
+						}
 						return;
 					}
-					player.playSong(currentUrl);
+					currentSong = song;
+					failTimes = 0;
+					player.playSong(url);
+					var file:File = File.applicationDirectory.resolvePath(getCoverPath(song));
+					if(file.exists)
+						cover.source = file.nativePath;
+					else
+					{
+						qqMusic.searchCover(song.artist,song.title,onCoverUrlComp);
+						cover.source = null;
+					}
 					favorBtn.selected = (song.favor=="1");
 					titleLabel.text = song.title+" - "+song.artist;
 					title = song.title+" - DomFM";
 					timeLabel.text = "00:00";
 				}
+			}
+			
+			private var curlLoader:CurlLoader;
+			private function onCoverUrlComp(url:String):void
+			{
+				trace(url);
+				if(!url)
+					return;
+				if(!curlLoader)
+				{
+					curlLoader = new CurlLoader();
+					curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded)
+				}
+				curlLoader.load(url);
+			}
+			
+			private function onCoverLoaded(event:Event):void
+			{
+				cover.source = curlLoader.loadedBytes;
+				if(curlLoader.loadedBytes.length>1024)
+					FileUtil.save(getCoverPath(currentSong),curlLoader.loadedBytes);
+			}
+			
+			private function getCoverPath(song:Object):String
+			{
+				var path:String = "";
+				if(song.artist)
+					path += song.artist;
+				if(song.album)
+					path += " - "+song.album;
+				path = "covers/"+path+".jpg";
+				return path;
 			}
 			
 			private var driverLetters:Array = ["C","D","E","F","G","H","I","J","K","L"];
@@ -134,21 +191,65 @@
 				playNext();
 			}
 			/**
+			 * 一首歌播放失败
+			 */	
+			private function onPlayError(event:PlayEvent):void
+			{
+				playNext();
+			}
+			/**
 			 * 跳过按钮点击
 			 */	
 			protected function skipBT_clickHandler(event:MouseEvent=null):void
 			{
-				sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentUrl)+"';");
+				sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentSong.url)+"';");
 				playNext();
 			}
 			/**
 			 * id3解析器
 			 */	
 			private var id3Parser:ID3Parser;
+			
+			/**
+			 * 拖拽文件进入
+			 */
+			private function windowedapplication1_nativeDragEnterHandler(event:NativeDragEvent):void
+			{
+				if(event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT))
+				{       
+					if(event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT))
+						DragManager.acceptDragDrop(this);    
+				}
+			}
+			/**
+			 * 拖拽文件放下
+			 */
+			private function windowedapplication1_nativeDragDropHandler(event:NativeDragEvent):void
+			{
+				var arr:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
+				var list:Array = [];
+				for each(var file:File in arr)
+				{
+					if(file.isDirectory)
+					{
+						list = list.concat(FileUtil.search(file.nativePath,null,filterFunc));
+					}
+					else if(filterFunc(file))
+					{
+						list.push(file);
+					}
+				}
+				var urlList:Array = [];
+				for each(file in list)
+				{
+					urlList.push(file.nativePath);
+				}
+				id3Parser.parse(urlList);
+			}
 			/**
 			 * 添加按钮点击
 			 */	
-			protected function addBtn_clickHandler(event:MouseEvent):void
+			protected function addBtn_clickHandler(event:Event):void
 			{
 				FileUtil.browseForOpen(function(file:File):void{
 					var list:Array = FileUtil.search(file.nativePath,null,filterFunc);
@@ -157,11 +258,7 @@
 					{
 						urlList.push(file.nativePath);
 					}
-					if(!id3Parser)
-					{
-						id3Parser = new ID3Parser;
-						id3Parser.addEventListener(ID3Event.GET_ONE_INFO,onGetMusicInfo);
-					}
+					
 					id3Parser.parse(urlList);
 				},3);
 			}
@@ -181,8 +278,8 @@
 					id3.title = FileUtil.getFileName(event.url);
 				}
 				var type:String = FileUtil.getExtension(event.url);
-				sql.execute("insert into song (title,artist,url,type,favor,count,skip) values('"+
-					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(event.url)+"','"+
+				sql.execute("insert into song (title,artist,album,url,type,favor,count,skip) values('"+
+					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(id3.album)+"','"+SQL.escape(event.url)+"','"+
 					SQL.escape(type)+"',0,0,0);");
 				trace(id3.title,id3.artist);
 			}
@@ -220,6 +317,11 @@
 				nativeWindow.x = windowX;
 				nativeWindow.y = windowY;
 				addEventListener(FlexNativeWindowBoundsEvent.WINDOW_MOVE,windowedapplication1_windowMoveHandler);
+				var menu:NativeMenu = new NativeMenu();
+				var menuItem:NativeMenuItem = new NativeMenuItem("添加音乐");
+				menuItem.addEventListener(Event.SELECT,addBtn_clickHandler);
+				menu.addItem(menuItem);
+				contextMenu = menu;
 				playNext();
 			}
 			
@@ -270,12 +372,12 @@
 			private function likeBT_changeHandler(event:Event=null):void
 			{
 				var favor:String = favorBtn.selected?"1":"0";
-				sql.execute("update song set favor = "+favor+" where url='"+SQL.escape(currentUrl)+"';");
+				sql.execute("update song set favor = "+favor+" where url='"+SQL.escape(currentSong.url)+"';");
 			}
 			
 			protected function banBT_clickHandler(event:MouseEvent=null):void
 			{
-				sql.execute("update song set favor = -1 where url='"+SQL.escape(currentUrl)+"';");
+				sql.execute("update song set favor = -1 where url='"+SQL.escape(currentSong.url)+"';");
 				playNext();
 			}
 			
@@ -309,13 +411,14 @@
 				playNext();
 			}
 			
+			
 		]]>
 	</fx:Script>
 	<fx:Declarations>
 	</fx:Declarations>
-	<s:Image id="cover" x="32" y="30" width="120" height="120" scaleMode="zoom"
-			 source="http://imgcache.qq.com/music/photo/singer/58/singerpic_4558_0.jpg"/>
 	<s:BitmapImage x="32" y="30" width="120" height="120" source="@Embed('com/domlib/domFM/skins/assets/coverBg.png')"/>
+	<s:Image id="cover" x="32" y="30" width="120" height="120" scaleMode="zoom"
+			 skinClass="com.domlib.domFM.skins.ImageSkin"/>
 	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
 		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
 		<s:Label id="titleLabel" showTruncationTip="true" maxDisplayedLines="1" x="8" y="27" width="200" color="#666666" fontWeight="normal"/>

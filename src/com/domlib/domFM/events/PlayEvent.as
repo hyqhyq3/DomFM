@@ -18,6 +18,10 @@ package com.domlib.domFM.events
 		 */		
 		public static const PLAY_PROGRESS:String = "playProgress";
 		/**
+		 * 播放失败
+		 */		
+		public static const PLAY_ERROR:String = "playError";
+		/**
 		 * 构造函数
 		 */		
 		public function PlayEvent(type:String, bubbles:Boolean=false, cancelable:Boolean=false)

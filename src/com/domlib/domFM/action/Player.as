@@ -9,10 +9,18 @@ package com.domlib.domFM.action
 	import flash.media.SoundChannel;
 	import flash.net.URLRequest;
 	import flash.utils.Timer;
-	
+	/**
+	 * 播放完成
+	 */	
 	[Event(name="playComplete",type="com.domlib.domFM.events.PlayEvent")]
-	
+	/**
+	 * 播放进度
+	 */	
 	[Event(name="playProgress",type="com.domlib.domFM.events.PlayEvent")]
+	/**
+	 * 播放失败
+	 */	
+	[Event(name="playError",type="com.domlib.domFM.events.PlayEvent")]
 	/**
 	 * 播放器
 	 * @author DOM
@@ -30,8 +38,14 @@ package com.domlib.domFM.action
 		
 		private function onTimer(event:TimerEvent):void
 		{
-			if(!sc)
+			if(!sc||sc.position==0)
+			{
+				timer.stop();
+				var evt:PlayEvent = new PlayEvent(PlayEvent.PLAY_ERROR);
+				evt.url = currentPath;
+				dispatchEvent(evt);
 				return;
+			}
 			var e:PlayEvent = new PlayEvent(PlayEvent.PLAY_PROGRESS);
 			e.playedTime = sc.position;
 			e.url = currentPath;

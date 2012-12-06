@@ -26,9 +26,9 @@ package com.domlib.domFM.utils
 				deletePath(file.nativePath);
 			}
 			var fs:FileStream = new FileStream;
-			fs.open(file,FileMode.WRITE);
 			try
 			{
+				fs.open(file,FileMode.WRITE);
 				if(data is ByteArray)
 				{
 					fs.writeBytes(data as ByteArray);
