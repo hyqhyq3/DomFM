@@ -431,11 +431,16 @@
 			private function addFiles(list:Array):void
 			{
 				var urlList:Array = [];
+				var songList:Array = [];
+				var result:Array = sql.execute("select url from song");
+				for each(var song:Object in result)
+				{
+					songList.push(song.url.substr(3));
+				}
 				for each(var file:File in list)
 				{
-					var url:String = "%"+file.nativePath.substr(2);
-					var result:Array = sql.execute("select title from song where url like'"+SQL.escape(url)+"'");
-					if(result&&result.length>0)
+					var url:String = file.nativePath.substr(3);
+					if(songList.indexOf(url)!=-1)
 						continue;
 					urlList.push(file.nativePath);
 				}
