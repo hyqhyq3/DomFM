@@ -108,8 +108,11 @@
 				}
 				if(id3Parser)
 					id3Parser.exit();
-				event.preventDefault();
-				sendData();
+				if(syncServer)
+				{
+					event.preventDefault();
+					sendData();
+				}
 			}
 			
 			private var dbVersion:uint = 1;
@@ -129,7 +132,7 @@
 					FileUtil.save(zipFile,data);
 					var file:File = File.applicationDirectory.resolvePath(zipFile);
 					file.addEventListener(Event.COMPLETE,onUploadComp);
-					file.addEventListener(IOErrorEvent.IO_ERROR,onIoError);
+					file.addEventListener(IOErrorEvent.IO_ERROR,onUploadComp);
 					file.upload(new URLRequest(syncServer));
 				}
 			}
