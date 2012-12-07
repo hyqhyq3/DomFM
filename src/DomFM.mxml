@@ -31,6 +31,7 @@
 			
 			private var hotKey:HotKey;
 			
+			private var inSync:Boolean = false;
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
 				var bytes:ByteArray = FileUtil.openAsByteArray(zipFile);
@@ -51,16 +52,38 @@
 					}
 					catch(e:Error){}
 				}
-				var loader:URLLoader = new URLLoader();
-				loader.addEventListener(Event.COMPLETE,onDbComp);
-				loader.addEventListener(IOErrorEvent.IO_ERROR,onIoError);
-				loader.dataFormat = URLLoaderDataFormat.BINARY;
-				loader.load(new URLRequest(downloadUrl));
+				if(downloadUrl)
+				{
+					var loader:URLLoader = new URLLoader();
+					loader.addEventListener(Event.COMPLETE,onDbComp);
+					loader.addEventListener(IOErrorEvent.IO_ERROR,finishSync);
+					loader.addEventListener(ProgressEvent.PROGRESS,onProgress);
+					loader.dataFormat = URLLoaderDataFormat.BINARY;
+					loader.load(new URLRequest(getRandomUrl(downloadUrl)));
+					inSync = true;
+					pauseMask.visible = true;
+					continueLabel.text = "同步中 0%";
+				}
+				
 				hotKey = new HotKey();
 				hotKey.addEventListener(KeyboardEvent.KEY_DOWN,onKeyDown);
 				id3Parser = new ID3Parser;
 				id3Parser.addEventListener(ID3Event.GET_ONE_INFO,onGetMusicInfo);
 				this.nativeApplication.addEventListener(Event.EXITING,onExiting);
+			}
+			
+			private function getRandomUrl(url:String):String
+			{
+				if(url.indexOf("?")!=-1)
+				{
+					return url += "&r="+Math.random();
+				}
+				return url += "?r="+Math.random();
+			}
+			
+			protected function onProgress(event:ProgressEvent):void
+			{
+				continueLabel.text = "同步中 "+int(event.bytesLoaded*100/event.bytesTotal)+"%";
 			}
 			
 			protected function onDbComp(event:Event):void
@@ -82,12 +105,15 @@
 					FileUtil.save("music.db",data);
 					sql = new SQL("music.db");
 				}
-				
+				finishSync();
 			}
 			
-			private function onIoError(event:Event):void
+			private function finishSync(event:Event=null):void
 			{
-				
+				inSync = false;
+				continueLabel.text = "继续收听";
+				pauseMask.visible = false;
+				playNext();
 			}
 			
 			
@@ -108,7 +134,7 @@
 				}
 				if(id3Parser)
 					id3Parser.exit();
-				if(syncServer)
+				if(syncServer&&sql.isChanged)
 				{
 					event.preventDefault();
 					sendData();
@@ -133,7 +159,7 @@
 					var file:File = File.applicationDirectory.resolvePath(zipFile);
 					file.addEventListener(Event.COMPLETE,onUploadComp);
 					file.addEventListener(IOErrorEvent.IO_ERROR,onUploadComp);
-					file.upload(new URLRequest(syncServer));
+					file.upload(new URLRequest(getRandomUrl(syncServer)));
 				}
 			}
 			
@@ -156,6 +182,8 @@
 			 */	
 			private function playNext():void
 			{
+				if(inSync)
+					return;
 				if(!player)
 				{
 					player = new Player();
@@ -334,6 +362,8 @@
 			 */
 			private function windowedapplication1_nativeDragDropHandler(event:NativeDragEvent):void
 			{
+				if(inSync)
+					return;
 				var arr:Array = event.clipboard.getData(ClipboardFormats.FILE_LIST_FORMAT) as Array;
 				var list:Array = [];
 				for each(var file:File in arr)
@@ -359,6 +389,8 @@
 			 */	
 			protected function addBtn_clickHandler(event:Event):void
 			{
+				if(inSync)
+					return;
 				FileUtil.browseForOpen(function(file:File):void{
 					var list:Array = FileUtil.search(file.nativePath,null,filterFunc);
 					var urlList:Array = [];
@@ -442,7 +474,7 @@
 			
 			protected function onKeyDown(event:KeyboardEvent):void
 			{
-				if(!initialized)
+				if(!initialized||inSync)
 					return;
 				timeLabel.text += event.keyCode+" ";
 				if(event.ctrlKey&&event.altKey)
@@ -503,6 +535,8 @@
 			
 			protected function group1_clickHandler(event:MouseEvent=null):void
 			{
+				if(inSync)
+					return;
 				pauseMask.visible = true;
 				if(player)
 				{
@@ -520,6 +554,18 @@
 				playNext();
 			}
 			
+			
+			
+			
+			protected function pauseMask_rollOutHandler(event:MouseEvent):void
+			{
+				bgColor.color = 0x9c9c9c;
+			}
+			
+			protected function pauseMask_rollOverHandler(event:MouseEvent):void
+			{
+				bgColor.color = 0x808080;
+			}
 			
 		]]>
 			
@@ -543,7 +589,8 @@
 			  click="skipBT_clickHandler(event)" skinClass="com.domlib.domFM.skins.NextButtonSkin"/>
 	<s:Button useHandCursor="true" buttonMode="true" id="banBT" toolTip="不再播放" x="305" y="123" width="40" height="40"
 			  click="banBT_clickHandler(event)" skinClass="com.domlib.domFM.skins.BanButtonSkin"/>
-	<s:Group id="pauseMask" useHandCursor="true" mouseChildren="false" buttonMode="true" width="100%" height="100%" visible="false" click="pauseMask_clickHandler(event)">
+	<s:ToggleButton id="channelBtn" toolTip="切换列表" useHandCursor="true" buttonMode="true" change="togglebutton1_changeHandler(event)" x="361" y="22" skinClass="com.domlib.domFM.skins.ChangeButtonSkin"/>
+	<s:Group id="pauseMask" rollOut="pauseMask_rollOutHandler(event)" rollOver="pauseMask_rollOverHandler(event)" useHandCursor="true" mouseChildren="false" buttonMode="true" width="100%" height="100%" visible="false" click="pauseMask_clickHandler(event)">
 		<s:Rect width="100%" height="100%">
 			<s:fill>
 				<s:SolidColor color="0xFFFFFF" alpha="0.6"/>
@@ -551,10 +598,9 @@
 		</s:Rect>
 		<s:Rect width="100" height="35" radiusX="4" radiusY="4" horizontalCenter="0" verticalCenter="0">
 			<s:fill>
-				<s:SolidColor color="0x808080"/>
+				<s:SolidColor id="bgColor" color="0x808080"/>
 			</s:fill>
 		</s:Rect>
-		<s:Label color="#FFFFFF" horizontalCenter="0" text="继续收听" verticalCenter="0"/>
+		<s:Label id="continueLabel" color="#FFFFFF" horizontalCenter="0" text="继续收听" verticalCenter="1"/>
 	</s:Group>
-	<s:ToggleButton id="channelBtn" toolTip="切换列表" useHandCursor="true" buttonMode="true" change="togglebutton1_changeHandler(event)" x="361" y="22" skinClass="com.domlib.domFM.skins.ChangeButtonSkin"/>
 </s:WindowedApplication>

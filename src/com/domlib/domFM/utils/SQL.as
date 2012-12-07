@@ -22,6 +22,16 @@ package com.domlib.domFM.utils
 			sqls.text = "CREATE TABLE IF NOT EXISTS song( id INTEGER PRIMARY KEY AUTOINCREMENT, title, artist, album,url, type, favor, count,skip);";
 			sqls.execute();
 		}
+		
+		private var _isChanged:Boolean = false;
+		/**
+		 * 数据库是否发生改变
+		 */
+		public function get isChanged():Boolean
+		{
+			return _isChanged;
+		}
+
 		/**
 		 * 数据库连接
 		 */		
@@ -34,6 +44,8 @@ package com.domlib.domFM.utils
 		 */		
 		public function execute(query:String):Array
 		{
+			if(!_isChanged&&query.substring(0,6).toLowerCase()!="select")
+				_isChanged = true;
 			try
 			{
 				sqls.text = query;
