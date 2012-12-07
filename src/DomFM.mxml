@@ -82,6 +82,7 @@
 				hotKey.addEventListener(KeyboardEvent.KEY_DOWN,onKeyDown);
 				id3Parser = new ID3Parser();
 				id3Parser.addEventListener(ID3Event.GET_ONE_INFO,onGetMusicInfo);
+				id3Parser.addEventListener(ID3Event.ALL_COMPLETE,onMusicInfoComp);
 				this.nativeApplication.addEventListener(Event.EXITING,onExiting);
 			}
 			
@@ -412,12 +413,7 @@
 						list.push(file);
 					}
 				}
-				var urlList:Array = [];
-				for each(file in list)
-				{
-					urlList.push(file.nativePath);
-				}
-				id3Parser.parse(urlList);
+				addFiles(list);
 			}
 			/**
 			 * 添加按钮点击
@@ -428,14 +424,22 @@
 					return;
 				FileUtil.browseForOpen(function(file:File):void{
 					var list:Array = FileUtil.search(file.nativePath,null,filterFunc);
-					var urlList:Array = [];
-					for each(var file:File in list)
-					{
-						urlList.push(file.nativePath);
-					}
-					
-					id3Parser.parse(urlList);
+					addFiles(list);
 				},3);
+			}
+			
+			private function addFiles(list:Array):void
+			{
+				var urlList:Array = [];
+				for each(var file:File in list)
+				{
+					var url:String = "%"+file.nativePath.substr(2);
+					var result:Array = sql.execute("select title from song where url like'"+SQL.escape(url)+"'");
+					if(result&&result.length>0)
+						continue;
+					urlList.push(file.nativePath);
+				}
+				id3Parser.parse(urlList);
 			}
 			
 			private var sql:SQL = new SQL("music.db");
@@ -452,12 +456,26 @@
 				{
 					id3.title = FileUtil.getFileName(event.url);
 				}
-				var type:String = FileUtil.getExtension(event.url);
+				var file:File = new File(event.url);
+				var type:String = file.extension;
 				sql.execute("insert into song (title,artist,album,url,type,favor,count,skip) values('"+
 					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(id3.album)+"','"+SQL.escape(event.url)+"','"+
 					SQL.escape(type)+"',0,0,0);");
 				if(!isPlaying)
 					playNext();
+				title = "正在导入："+file.name;
+			}
+			
+			private function onMusicInfoComp(event:ID3Event):void
+			{
+				if(currentSong)
+				{
+					title = currentSong.title+" - DomFM";
+				}
+				else
+				{
+					title = "DomFM";
+				}
 			}
 			
 			/**
