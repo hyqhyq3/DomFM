@@ -47,7 +47,7 @@
 			
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
-				var result:Array = sql.execute("select ver from version");
+				var result:Array = sql.execute("select ver from version where id=1");
 				if(result.length>0)
 					dbVersion = result[0].ver;
 				var text:String = FileUtil.openAsString("config/config.xml");
@@ -181,7 +181,7 @@
 			{
 				var bytes:ByteArray = FileUtil.openAsByteArray("music.db");
 				dbVersion++;
-				sql.execute("update version set ver = '"+dbVersion+"';");
+				sql.execute("update version set ver = '"+dbVersion+"' where id=1;");
 				if(bytes)
 				{
 					bytes.compress(CompressionAlgorithm.LZMA);

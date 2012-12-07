@@ -30,6 +30,8 @@ else if($type=='getversion')
 }
 else if($type=='download')
 {
+	Header("Content-type: application/octet-stream");
+	Header("Content-Length: ".filesize($db_path));
 	echo file_get_contents($db_path);
 }
 
