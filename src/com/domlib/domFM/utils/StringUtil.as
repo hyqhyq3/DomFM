@@ -113,7 +113,7 @@ package com.domlib.domFM.utils
 			var miniute:String = "00";
 			var abs:Boolean = time<0;
 			time = Math.abs(time);
-			if(time>60)
+			if(time>=60)
 			{
 				miniute = int(time/60).toString();
 				if(time/60<10)
