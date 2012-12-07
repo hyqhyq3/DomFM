@@ -259,7 +259,7 @@
 					title = song.title+" - DomFM";
 					if(favorBtn.selected)
 						title = "❤"+title;
-					timeLabel.text = "00:00";
+					timeLabel.text = " 00:00";
 				}
 				else
 				{
@@ -702,7 +702,7 @@
 	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
 		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
 		<s:Label id="titleLabel" showTruncationTip="true" maxDisplayedLines="1" x="8" y="27" width="200" color="#666666" fontWeight="normal"/>
-		<s:Label id="timeLabel" x="8" y="5" color="#666666" fontWeight="bold" text="00:00"/>
+		<s:Label id="timeLabel" x="8" y="5" color="#666666" fontWeight="bold" text=" 00:00"/>
 		<s:Label id="channelLabel" x="162" y="7" color="#FFFFFF" text="所有音乐"/>
 	</s:Group>
 	
