@@ -567,13 +567,28 @@
 				bgColor.color = 0x808080;
 			}
 			
+			protected function cover_clickHandler(event:MouseEvent):void
+			{
+				var file:File;
+				try
+				{
+					file = File.applicationDirectory.resolvePath(getCoverPath(currentSong));
+				}
+				catch(e:Error)
+				{
+					return;
+				}
+				if(file.exists)
+					file.openWithDefaultApplication();
+			}
+			
 		]]>
 			
 	</fx:Script>
 	<fx:Declarations>
 	</fx:Declarations>
 	<s:BitmapImage x="32" y="30" width="120" height="120" source="@Embed('com/domlib/domFM/skins/assets/coverBg.png')"/>
-	<s:Image id="cover" x="32" y="30" width="120" height="120" scaleMode="zoom"
+	<s:Image id="cover" useHandCursor="true" buttonMode="true" click="cover_clickHandler(event)" x="32" y="30" width="120" height="120" scaleMode="zoom"
 			 skinClass="com.domlib.domFM.skins.ImageSkin"/>
 	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
 		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
