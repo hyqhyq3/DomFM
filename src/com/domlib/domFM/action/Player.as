@@ -56,6 +56,7 @@ package com.domlib.domFM.action
 			count = 0;
 			var e:PlayEvent = new PlayEvent(PlayEvent.PLAY_PROGRESS);
 			e.playedTime = sc.position;
+			e.totalTime = sound.length;
 			e.url = currentPath;
 			dispatchEvent(e);
 		}
@@ -146,6 +147,7 @@ package com.domlib.domFM.action
 			var e:PlayEvent = new PlayEvent(PlayEvent.PLAY_COMPLETE);
 			e.url = currentPath;
 			e.playedTime = sc.position;
+			e.totalTime = sound.length;
 			dispatchEvent(e);
 		}
 	}

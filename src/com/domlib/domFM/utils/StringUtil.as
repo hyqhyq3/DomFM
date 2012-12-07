@@ -111,6 +111,8 @@ package com.domlib.domFM.utils
 		{
 			time = Math.round(time/1000);
 			var miniute:String = "00";
+			var abs:Boolean = time<0;
+			time = Math.abs(time);
 			if(time>60)
 			{
 				miniute = int(time/60).toString();
@@ -129,7 +131,10 @@ package com.domlib.domFM.utils
 					second = "0"+second;
 				}
 			}
-			return miniute+":"+second;
+			var str:String = miniute+":"+second;
+			if(abs)
+				str = "-"+str;
+			return str;
 		}
 		/**
 		 * 根据时间字符串得到时间总数，单位秒。

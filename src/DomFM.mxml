@@ -395,7 +395,7 @@
 					sql.execute("update song set count = count+1 where url='"+SQL.escape(event.url)+"';");
 					countAdded = true;
 				}
-				timeLabel.text = StringUtil.toTimeString(event.playedTime);
+				timeLabel.text = StringUtil.toTimeString(event.playedTime-event.totalTime);
 			}
 			/**
 			 * 一首歌播放完成
