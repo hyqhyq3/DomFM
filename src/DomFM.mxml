@@ -30,16 +30,26 @@
 			import mx.rpc.http.HTTPService;
 			
 			private var hotKey:HotKey;
+			/**
+			 * id3解析器
+			 */	
+			private var id3Parser:ID3Parser;
 			
 			private var inSync:Boolean = false;
+
+			private var dbVersion:uint = 1;
+			
+			private var dbName:String = "";
+			
+			private var syncServer:String = "";
+			
+			private var syncPassword:String = "";
+			
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
-				var bytes:ByteArray = FileUtil.openAsByteArray(zipFile);
-				if(bytes)
-				{
-					bytes.position = 0;
-					dbVersion = bytes.readUnsignedInt();
-				}
+				var result:Array = sql.execute("select ver from version");
+				if(result.length>0)
+					dbVersion = result[0].ver;
 				var text:String = FileUtil.openAsString("config/config.xml");
 				if(text)
 				{
@@ -47,29 +57,59 @@
 					try
 					{
 						config = new XML(text);
-						downloadUrl = String(config.download[0]);
-						syncServer = String(config.sync[0]);
+						dbName = String(config.db_name[0]);
+						syncServer = String(config.sync_server[0]);
+						syncPassword = String(config.password[0]);
 					}
 					catch(e:Error){}
 				}
-				if(downloadUrl)
+				if(syncServer)
 				{
+					var url:String = syncServer+"?password="+syncPassword+"&dbname="+dbName+
+						"&type=getversion";
 					var loader:URLLoader = new URLLoader();
-					loader.addEventListener(Event.COMPLETE,onDbComp);
+					loader.addEventListener(Event.COMPLETE,onVersionComp);
 					loader.addEventListener(IOErrorEvent.IO_ERROR,finishSync);
-					loader.addEventListener(ProgressEvent.PROGRESS,onProgress);
-					loader.dataFormat = URLLoaderDataFormat.BINARY;
-					loader.load(new URLRequest(getRandomUrl(downloadUrl)));
+					loader.dataFormat = URLLoaderDataFormat.TEXT;
+					loader.load(new URLRequest(getRandomUrl(url)));
 					inSync = true;
 					pauseMask.visible = true;
 					continueLabel.text = "同步中 0%";
+					
 				}
 				
 				hotKey = new HotKey();
 				hotKey.addEventListener(KeyboardEvent.KEY_DOWN,onKeyDown);
-				id3Parser = new ID3Parser;
+				id3Parser = new ID3Parser();
 				id3Parser.addEventListener(ID3Event.GET_ONE_INFO,onGetMusicInfo);
 				this.nativeApplication.addEventListener(Event.EXITING,onExiting);
+			}
+			
+			private var serverVersion:uint = 1;
+			protected function onVersionComp(event:Event):void
+			{
+				var loader:URLLoader = event.target as URLLoader;
+				serverVersion = uint(loader.data);
+				if(serverVersion>dbVersion)
+				{
+					startDownloadDataBase();
+				}
+				else
+				{
+					finishSync();
+				}
+			}
+			
+			private function startDownloadDataBase():void
+			{
+				var url:String = syncServer+"?password="+syncPassword+
+					"&dbname="+dbName+"&type=download";
+				var loader:URLLoader = new URLLoader();
+				loader.addEventListener(Event.COMPLETE,onDbComp);
+				loader.addEventListener(IOErrorEvent.IO_ERROR,finishSync);
+				loader.addEventListener(ProgressEvent.PROGRESS,onProgress);
+				loader.dataFormat = URLLoaderDataFormat.BINARY;
+				loader.load(new URLRequest(getRandomUrl(url)));
 			}
 			
 			private function getRandomUrl(url:String):String
@@ -90,19 +130,16 @@
 			{
 				var loader:URLLoader = event.target as URLLoader;
 				var bytes:ByteArray = loader.data;
-				bytes.position = 0;
-				var version:uint = bytes.readUnsignedInt();
-				if(version>dbVersion)
+				if(bytes.length>1)
 				{
-					dbVersion = version;
-					var data:ByteArray = new ByteArray();
-					bytes.readBytes(data);
-					data.uncompress(CompressionAlgorithm.LZMA);
+					dbVersion = serverVersion;
+					bytes.position = 0;
+					bytes.uncompress(CompressionAlgorithm.LZMA);
 					if(sql)
 					{
 						sql.close();
 					}
-					FileUtil.save("music.db",data);
+					FileUtil.save("music.db",bytes);
 					sql = new SQL("music.db");
 				}
 				finishSync();
@@ -117,8 +154,6 @@
 			}
 			
 			
-			private var downloadUrl:String = "";
-			private var syncServer:String = "";
 			/**
 			 * 应用程序退出
 			 */	
@@ -141,30 +176,28 @@
 				}
 			}
 			
-			private var dbVersion:uint = 1;
-			
-			private var zipFile:String = "musicdb.zip";
-			
 			private function sendData():void
 			{
-				var data:ByteArray = new ByteArray();
 				var bytes:ByteArray = FileUtil.openAsByteArray("music.db");
 				dbVersion++;
-				data.writeUnsignedInt(dbVersion);
+				sql.execute("update version set ver = '"+dbVersion+"';");
 				if(bytes)
 				{
 					bytes.compress(CompressionAlgorithm.LZMA);
-					data.writeBytes(bytes);
-					FileUtil.save(zipFile,data);
-					var file:File = File.applicationDirectory.resolvePath(zipFile);
+					FileUtil.save(dbName+".zip",bytes);
+					var url:String = syncServer+"?password="+syncPassword+"&dbname="+dbName+
+						"&type=upload"+"&version="+dbVersion;
+					var file:File = File.applicationDirectory.resolvePath(dbName+".zip");
 					file.addEventListener(Event.COMPLETE,onUploadComp);
 					file.addEventListener(IOErrorEvent.IO_ERROR,onUploadComp);
-					file.upload(new URLRequest(getRandomUrl(syncServer)));
+					url = getRandomUrl(url);
+					file.upload(new URLRequest(url));
 				}
 			}
 			
 			protected function onUploadComp(event:Event):void
 			{
+				FileUtil.deletePath(dbName+".zip");
 				nativeApplication.exit();
 			}
 			
@@ -212,7 +245,9 @@
 					player.playSong(url);
 					var file:File = File.applicationDirectory.resolvePath(getCoverPath(song));
 					if(file.exists)
+					{
 						cover.source = file.nativePath;
+					}
 					else
 					{
 						qqMusic.searchCover(song.artist,song.title,onCoverUrlComp);
@@ -244,9 +279,12 @@
 			
 			private function onCoverLoaded(event:Event):void
 			{
-				cover.source = curlLoader.loadedBytes;
 				if(curlLoader.loadedBytes.length>1024)
-					FileUtil.save(getCoverPath(currentSong),curlLoader.loadedBytes);
+				{
+					var path:String = getCoverPath(currentSong);
+					FileUtil.save(path,curlLoader.loadedBytes);
+					cover.source = path;
+				}
 			}
 			
 			private function getCoverPath(song:Object):String
@@ -338,13 +376,10 @@
 			 */	
 			protected function skipBT_clickHandler(event:MouseEvent=null):void
 			{
-				sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentSong.url)+"';");
+				if(currentSong)
+					sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentSong.url)+"';");
 				playNext();
 			}
-			/**
-			 * id3解析器
-			 */	
-			private var id3Parser:ID3Parser;
 			
 			/**
 			 * 拖拽文件进入
@@ -513,12 +548,14 @@
 			private function likeBT_changeHandler(event:Event=null):void
 			{
 				var favor:String = favorBtn.selected?"1":"0";
-				sql.execute("update song set favor = "+favor+" where url='"+SQL.escape(currentSong.url)+"';");
+				if(currentSong)
+					sql.execute("update song set favor = "+favor+" where url='"+SQL.escape(currentSong.url)+"';");
 			}
 			
 			protected function banBT_clickHandler(event:MouseEvent=null):void
 			{
-				sql.execute("update song set favor = -1 where url='"+SQL.escape(currentSong.url)+"';");
+				if(currentSong)
+					sql.execute("update song set favor = -1 where url='"+SQL.escape(currentSong.url)+"';");
 				playNext();
 			}
 			
@@ -581,6 +618,7 @@
 				if(file.exists)
 					file.openWithDefaultApplication();
 			}
+			
 			
 		]]>
 			

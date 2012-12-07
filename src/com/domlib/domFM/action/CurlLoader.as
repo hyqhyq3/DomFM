@@ -73,6 +73,7 @@ package com.domlib.domFM.action
 		 */		
 		private function delayStart(event:NativeProcessExitEvent):void
 		{
+			nativeProcess.removeEventListener(NativeProcessExitEvent.EXIT,delayStart);
 			nativeProcess.addEventListener(NativeProcessExitEvent.EXIT,onComp);
 			nativeProcess.start(startInfo);
 		}

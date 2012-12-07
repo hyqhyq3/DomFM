@@ -21,6 +21,10 @@ package com.domlib.domFM.utils
 			sqls.sqlConnection = sqlc;
 			sqls.text = "CREATE TABLE IF NOT EXISTS song( id INTEGER PRIMARY KEY AUTOINCREMENT, title, artist, album,url, type, favor, count,skip);";
 			sqls.execute();
+			sqls.text = "CREATE TABLE IF NOT EXISTS version(ver);";
+			sqls.execute();
+			sqls.text = "insert into version (ver) values(1);";
+			sqls.execute();
 		}
 		
 		private var _isChanged:Boolean = false;

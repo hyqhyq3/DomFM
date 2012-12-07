@@ -23,7 +23,7 @@
   <flashCatalyst validateFlashCatalystCompatibility="false"/>
   <buildTargets>
     <buildTarget buildTargetName="default">
-      <airSettings airCertificatePath="E:/Program/Flash/资料/flexlite.p12" airTimestamp="true" anePathSet="true" version="1">
+      <airSettings airCertificatePath="E:/Program/Flash/璧勬枡/flexlite.p12" airTimestamp="true" anePathSet="true" version="1">
         <airExcludes/>
         <anePaths/>
       </airSettings>
@@ -31,3 +31,4 @@
     </buildTarget>
   </buildTargets>
 </actionScriptProperties>
+

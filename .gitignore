@@ -20,3 +20,11 @@ bin/
 /.settings
 /.fxpProperties
 /.project
+.actionScriptProperties
+.flexProperties
+.fxpProperties
+DomFM.exe
+.project
+.settings
+.settings
+org.eclipse.core.resources.prefs

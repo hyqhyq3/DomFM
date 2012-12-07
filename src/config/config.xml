@@ -1,4 +1,5 @@
 <root>
-	<sync></sync><!-- 上传数据库文件的脚本地址 -->
-	<download></download><!-- 数据库文件下载地址 -->
+	<sync_server>http://localhost/DomFM/sync.php</sync_server>
+	<db_name>dom</db_name>
+	<password>domlib</password>
 </root>
