@@ -1,0 +1,5 @@
+Ctrl+Alt+Left : 喜欢
+Ctrl+Alt+Right : 跳过
+Ctrl+Alt+F5 : 暂停/继续
+Ctrl+Alt+F11 : 切换列表(我喜欢的/所有音乐)
+Ctrl+Alt+F12 : 不再播放

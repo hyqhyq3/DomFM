@@ -36,16 +36,24 @@ package com.domlib.domFM.action
 			timer.addEventListener(TimerEvent.TIMER,onTimer);
 		}
 		
+		private var count:int = 0;
+		
 		private function onTimer(event:TimerEvent):void
 		{
 			if(!sc||sc.position==0)
 			{
-				timer.stop();
-				var evt:PlayEvent = new PlayEvent(PlayEvent.PLAY_ERROR);
-				evt.url = currentPath;
-				dispatchEvent(evt);
+				count++;
+				if(count>10)
+				{
+					count = 0;
+					timer.stop();
+					var evt:PlayEvent = new PlayEvent(PlayEvent.PLAY_ERROR);
+					evt.url = currentPath;
+					dispatchEvent(evt);
+				}
 				return;
 			}
+			count = 0;
 			var e:PlayEvent = new PlayEvent(PlayEvent.PLAY_PROGRESS);
 			e.playedTime = sc.position;
 			e.url = currentPath;

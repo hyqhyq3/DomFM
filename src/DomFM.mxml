@@ -257,6 +257,8 @@
 					favorBtn.selected = (song.favor=="1");
 					titleLabel.text = song.title+" - "+song.artist;
 					title = song.title+" - DomFM";
+					if(favorBtn.selected)
+						title = "❤"+title;
 					timeLabel.text = "00:00";
 				}
 				else
@@ -589,8 +591,8 @@
 							likeBT_changeHandler();
 							break;
 						case Keyboard.F11:
-							favorBtn.selected = false;
-							likeBT_changeHandler();
+							channelBtn.selected = !channelBtn.selected;
+							togglebutton1_changeHandler();
 							break;
 						case Keyboard.F12:
 							banBT_clickHandler();
@@ -613,6 +615,10 @@
 			private function likeBT_changeHandler(event:Event=null):void
 			{
 				var favor:String = favorBtn.selected?"1":"0";
+				currentSong.favor = favor;
+				title = currentSong.title+" - DomFM";
+				if(favor=="1")
+					title = "❤"+title;
 				if(currentSong)
 					sql.execute("update song set favor = "+favor+" where url='"+SQL.escape(currentSong.url)+"';");
 			}
@@ -648,7 +654,7 @@
 			
 			private var playILike:Boolean = false;
 			
-			protected function togglebutton1_changeHandler(event:Event):void
+			protected function togglebutton1_changeHandler(event:Event=null):void
 			{
 				playILike = channelBtn.selected;
 				channelLabel.text = playILike?"我喜欢的":"所有音乐";
@@ -691,7 +697,7 @@
 	<fx:Declarations>
 	</fx:Declarations>
 	<s:BitmapImage x="32" y="30" width="120" height="120" source="@Embed('com/domlib/domFM/skins/assets/coverBg.png')"/>
-	<s:Image id="cover" toolTip="查看大图" useHandCursor="true" buttonMode="true" click="cover_clickHandler(event)" x="32" y="30" width="120" height="120" scaleMode="zoom"
+	<s:Image id="cover" smoothingQuality="high" smooth="true" toolTip="查看大图" useHandCursor="true" buttonMode="true" click="cover_clickHandler(event)" x="32" y="30" width="120" height="120" scaleMode="zoom"
 			 skinClass="com.domlib.domFM.skins.ImageSkin"/>
 	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
 		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
