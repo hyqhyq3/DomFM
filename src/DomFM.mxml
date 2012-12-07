@@ -268,14 +268,30 @@
 			private var curlLoader:CurlLoader;
 			private function onCoverUrlComp(url:String):void
 			{
-				if(!url)
+				if(!currentSong)
 					return;
-				if(!curlLoader)
+				if(url)
 				{
-					curlLoader = new CurlLoader();
-					curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded)
+					if(!curlLoader)
+					{
+						curlLoader = new CurlLoader();
+						curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded)
+					}
+					curlLoader.load(url);
 				}
-				curlLoader.load(url);
+				else
+				{
+					var file:File = File.applicationDirectory.resolvePath("artists/"+currentSong.artist+".jpg");
+					if(file.exists)
+					{
+						cover.source = file.nativePath;
+					}
+					else
+					{
+						qqMusic.searchArtist(currentSong.artist,onArtistUrlComp);
+						cover.source = null;
+					}
+				}
 			}
 			
 			private function onCoverLoaded(event:Event):void
@@ -287,6 +303,32 @@
 					cover.source = path;
 				}
 			}
+			
+			private function onArtistUrlComp(url:String):void
+			{
+				if(!currentSong)
+					return;
+				if(url)
+				{
+					if(!curlLoader)
+					{
+						curlLoader = new CurlLoader();
+						curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded)
+					}
+					curlLoader.load(url);
+				}
+			}
+			
+			private function onArtistLoaded(event:Event):void
+			{
+				if(curlLoader.loadedBytes.length>1024)
+				{
+					var path:String = "artists/"+currentSong.artist+".jpg";
+					FileUtil.save(path,curlLoader.loadedBytes);
+					cover.source = path;
+				}
+			}
+			
 			
 			private function getCoverPath(song:Object):String
 			{
