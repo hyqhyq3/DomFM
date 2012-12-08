@@ -49,6 +49,7 @@
 			
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
+				playILike = SharedObjectTool.read(applicationID,"playILike");
 				var result:Array = sql.execute("select ver from version where id=1");
 				if(result.length>0)
 					dbVersion = result[0].ver;
@@ -412,6 +413,8 @@
 			
 			private function getPortableUrl(url:String):String
 			{
+				if(!url)
+					return "";
 				try
 				{
 					if(new File(url).exists)
@@ -427,30 +430,43 @@
 				}
 				return "";
 			}
+			
+			private var excludeIds:Array = [];
+			
+			private function getNotInStr():String
+			{
+				if(excludeIds.length==0)
+					return "";
+				
+				var result:Array;
+				if(playILike)
+					result = sql.execute("select * from song where favor=1;");
+				else
+					result = sql.execute("select * from song where favor<>-1;");
+				var length:int = 0;
+				if(result)
+					length = result.length-3;
+				length = Math.min(length,20);
+				while(excludeIds.length>length)
+					excludeIds.shift();
+				return " and id not in ("+excludeIds.join(",")+")";
+			}
 			/**
 			 * 获取一条音乐记录
 			 */	
 			private function getSongByRandom():Object
 			{
 				var result:Array;
+				var excludeStr:String = getNotInStr();
 				if(playILike)
-					result= sql.execute("select  Min(count) as count From  song where favor=1");
+					result= sql.execute("select  Min(count) as count From  song where favor=1"+excludeStr);
 				else
-					result= sql.execute("select  Min(count) as count From  song");
+					result= sql.execute("select  Min(count) as count From  song"+excludeStr);
 				var minCount:Number = Number(result[0].count);
-				if(isNaN(minCount))
-					minCount = 0;
 				if(playILike)
-					result= sql.execute("select  Min(skip) as skip From  song where favor=1");
+					result = sql.execute("select * from song where count="+minCount+excludeStr+" and favor=1 order by random() limit 1;");
 				else
-					result= sql.execute("select  Min(skip) as skip From  song");
-				var minSkip:Number = Number(result[0].skip);
-				if(isNaN(minSkip))
-					minSkip = 0;
-				if(playILike)
-					result = sql.execute("select * from song where count="+minCount+" and skip="+minSkip+" and favor=1 order by random() limit 1;");
-				else
-					result = sql.execute("select * from song where count="+minCount+" and skip="+minSkip+" and favor<>-1 order by random() limit 1;");
+					result = sql.execute("select * from song where count="+minCount+excludeStr+" and favor<>-1 order by random() limit 1;");
 				if(result)
 					return result[0];
 				return null;
@@ -499,7 +515,11 @@
 			protected function skipBT_clickHandler(event:MouseEvent=null):void
 			{
 				if(currentSong)
+				{
 					sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentSong.url)+"';");
+					if(excludeIds.indexOf(currentSong.id)==-1)
+						excludeIds.push(currentSong.id);
+				}
 				playNext();
 			}
 			
@@ -621,11 +641,10 @@
 			
 			protected function windowedapplication1_windowCompleteHandler(event:AIREvent):void
 			{
-				var windowX:Number = SharedObjectTool.read(applicationID,"windowX");
-				var windowY:Number = SharedObjectTool.read(applicationID,"windowY");
-				playILike = SharedObjectTool.read(applicationID,"playILike");
 				channelBtn.selected = playILike;
 				channelLabel.text = playILike?"我喜欢的":"所有音乐";
+				var windowX:Number = SharedObjectTool.read(applicationID,"windowX");
+				var windowY:Number = SharedObjectTool.read(applicationID,"windowY");
 				if(isNaN(windowX))
 					windowX = (Capabilities.screenResolutionX - width)*0.5;
 				if(isNaN(windowY))
