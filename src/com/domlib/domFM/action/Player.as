@@ -50,7 +50,7 @@ package com.domlib.domFM.action
 			if(!sc||sc.position==0)
 			{
 				count++;
-				if((!curLoader&&count>10)||count>30)
+				if((!curLoader&&count>10)||count>20)
 				{
 					count = 0;
 					timer.stop();
