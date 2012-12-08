@@ -2,7 +2,7 @@
 <s:WindowedApplication xmlns:fx="http://ns.adobe.com/mxml/2009" nativeDragEnter="windowedapplication1_nativeDragEnterHandler(event)"
 					   nativeDragDrop="windowedapplication1_nativeDragDropHandler(event)"
 					   xmlns:s="library://ns.adobe.com/flex/spark" windowComplete="windowedapplication1_windowCompleteHandler(event)"
-					   xmlns:mx="library://ns.adobe.com/flex/mx" showStatusBar="false"
+					   xmlns:mx="library://ns.adobe.com/flex/mx" showStatusBar="false" mouseDown="windowedapplication1_mouseDownHandler(event)"
 					   width="420" height="185" backgroundColor="#CFCFCF" initialize="windowedapplication1_initializeHandler(event)">
 	<fx:Style source="style.css"/>
 	<fx:Script>
@@ -542,6 +542,8 @@
 			 */
 			private function windowedapplication1_nativeDragEnterHandler(event:NativeDragEvent):void
 			{
+				if(event.relatedObject==this)
+					return;
 				if(event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT))
 				{       
 					if(event.clipboard.hasFormat(ClipboardFormats.FILE_LIST_FORMAT))
@@ -674,6 +676,13 @@
 				var menuItem:NativeMenuItem = new NativeMenuItem("添加音乐");
 				menuItem.addEventListener(Event.SELECT,addBtn_clickHandler);
 				menu.addItem(menuItem);
+				menu.addItem(new NativeMenuItem("",true));
+				menuItem = new NativeMenuItem("复制当前");
+				menuItem.addEventListener(Event.SELECT,onCopyCurrent);
+				menu.addItem(menuItem);
+				menuItem = new NativeMenuItem("复制喜欢(100)");
+				menuItem.addEventListener(Event.SELECT,onCopyAll);
+				menu.addItem(menuItem);
 				contextMenu = menu;
 				if(!isPlaying)
 					playNext();
@@ -773,9 +782,6 @@
 				playNext();
 			}
 			
-			
-			
-			
 			protected function pauseMask_rollOutHandler(event:MouseEvent):void
 			{
 				bgColor.color = 0x9c9c9c;
@@ -802,13 +808,95 @@
 			}
 			
 			
+			protected function onCopyCurrent(event:Event):void
+			{
+				var file:File = getFileBySong(currentSong);
+				if(file)
+				{
+					Clipboard.generalClipboard.clear();
+					Clipboard.generalClipboard.setData(ClipboardFormats.FILE_LIST_FORMAT,[file]);
+				}
+			}
+			
+			protected function onCopyAll(event:Event):void
+			{
+				var result:Array = sql.execute("select * from song where favor=1 order by random() limit 100;");
+				if(result)
+				{
+					var list:Array = [];
+					for each(var song:Object in result)
+					{
+						var file:File = getFileBySong(song);
+						if(file)
+							list.push(file);
+					}
+					Clipboard.generalClipboard.clear();
+					Clipboard.generalClipboard.setData(ClipboardFormats.FILE_LIST_FORMAT,list);
+				}
+			}
+			
+			private function getFileBySong(song:Object):File
+			{
+				if(!song||!song.id)
+					return null;
+				var url:String = getPortableUrl(song.url);
+				if(!url)
+				{
+					url = getSongPath(currentSong);
+					var file:File = File.applicationDirectory.resolvePath(url);
+					if(!file.exists)
+						return null;
+				}
+				return File.applicationDirectory.resolvePath(url);
+			}
+			
+			protected function windowedapplication1_mouseDownHandler(event:MouseEvent):void
+			{
+				stage.addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
+				stage.addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+				stage.addEventListener(Event.MOUSE_LEAVE,onMouseUp);
+			}
+			
+			private function onMouseMove(event:MouseEvent):void
+			{
+				var file:File;
+				var cb:Clipboard = new Clipboard();
+				if(event.target==cover)
+				{
+					file = new File(cover.source as String);
+					if(!file.exists)
+						return;
+					cb.setData(ClipboardFormats.FILE_LIST_FORMAT, [file]);
+					var dragImage:BitmapData = new BitmapData(cover.width,cover.height);
+					dragImage.draw(cover);
+					
+					NativeDragManager.doDrag(this,cb,dragImage,new Point(-cover.mouseX,-cover.mouseY));  
+				}
+				else
+				{
+					file = getFileBySong(currentSong);
+					if(!file)
+						return;
+					cb.setData(ClipboardFormats.FILE_LIST_FORMAT, [file]);
+					NativeDragManager.doDrag(this,cb);  
+				}
+				onMouseUp();
+			}
+			
+			private function onMouseUp(event:Event=null):void
+			{
+				stage.removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
+				stage.removeEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+				stage.removeEventListener(Event.MOUSE_LEAVE,onMouseUp);
+			}
+			
 		]]>
 			
 	</fx:Script>
 	<fx:Declarations>
 	</fx:Declarations>
 	<s:BitmapImage x="32" y="30" width="120" height="120" source="@Embed('com/domlib/domFM/skins/assets/coverBg.png')"/>
-	<s:Image id="cover" smoothingQuality="high" smooth="true" toolTip="查看大图" useHandCursor="true" buttonMode="true" click="cover_clickHandler(event)" x="32" y="30" width="120" height="120" scaleMode="zoom"
+	<s:Image mouseChildren="false" id="cover" smoothingQuality="high" smooth="true" toolTip="查看大图" useHandCursor="true" buttonMode="true" click="cover_clickHandler(event)" x="32" y="30" width="120" height="120" scaleMode="zoom"
 			 skinClass="com.domlib.domFM.skins.ImageSkin"/>
 	<s:Group x="180" y="55" width="215" height="45" toolTip="暂停" useHandCursor="true" buttonMode="true" click="group1_clickHandler(event)">
 		<s:BitmapImage source="@Embed('com/domlib/domFM/skins/assets/bg.png')"/>
