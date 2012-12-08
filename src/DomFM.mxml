@@ -234,7 +234,7 @@
 					player.addEventListener(PlayEvent.LOAD_COMPLETE,onBytesLoadComp);
 				}
 				var song:Object = getSongByRandom();
-				if(song)
+				if(song&&song.id)
 				{
 					currentSong = song;
 					var url:String = getPortableUrl(song.url);
@@ -449,7 +449,7 @@
 				length = Math.min(length,20);
 				while(excludeIds.length>length)
 					excludeIds.shift();
-				return " and id not in ("+excludeIds.join(",")+")";
+				return " id not in ("+excludeIds.join(",")+")";
 			}
 			/**
 			 * 获取一条音乐记录
@@ -458,15 +458,29 @@
 			{
 				var result:Array;
 				var excludeStr:String = getNotInStr();
+				var query:String = "";
 				if(playILike)
-					result= sql.execute("select  Min(count) as count From  song where favor=1"+excludeStr);
+				{
+					query = "select  Min(count) as count From  song where favor=1";
+					if(excludeStr)
+						query += " and"+excludeStr;
+				}
 				else
-					result= sql.execute("select  Min(count) as count From  song"+excludeStr);
+				{
+					query= "select  Min(count) as count From  song";
+					if(excludeStr)
+						query += " where"+excludeStr;
+				}
+				result= sql.execute(query+";");
 				var minCount:Number = Number(result[0].count);
 				if(playILike)
-					result = sql.execute("select * from song where count="+minCount+excludeStr+" and favor=1 order by random() limit 1;");
+					query = "select * from song where count="+minCount+" and favor=1";
 				else
-					result = sql.execute("select * from song where count="+minCount+excludeStr+" and favor<>-1 order by random() limit 1;");
+					query = "select * from song where count="+minCount+" and favor<>-1";
+				if(excludeStr)
+					query += " and"+excludeStr;
+				query += " order by random() limit 1";
+				result= sql.execute(query+";");
 				if(result)
 					return result[0];
 				return null;
@@ -514,7 +528,7 @@
 			 */	
 			protected function skipBT_clickHandler(event:MouseEvent=null):void
 			{
-				if(currentSong)
+				if(currentSong&&currentSong.id)
 				{
 					sql.execute("update song set skip = skip+1 where url='"+SQL.escape(currentSong.url)+"';");
 					if(excludeIds.indexOf(currentSong.id)==-1)
