@@ -13,6 +13,20 @@ package com.domlib.domFM.utils
 	 */
 	public class FileUtil
 	{
+		
+		private static var forbidLetters:Array = ["\\","/",":","*","?","\"","<",">","|"];
+		/**
+		 * 过滤文件名中不合法的字符串。
+		 */		
+		public static function escape(fileName:String):String
+		{
+			for each(var letter:String in forbidLetters)
+			{
+				var arr:Array = fileName.split(letter);
+				fileName = arr.join("_");
+			}
+			return fileName;
+		}
 		/**
 		 * 保存数据到指定文件，返回是否保存成功
 		 * @param path 文件完整路径名

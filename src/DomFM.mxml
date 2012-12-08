@@ -45,6 +45,8 @@
 			
 			private var syncPassword:String = "";
 			
+			private var libPath:String = "";
+			
 			protected function windowedapplication1_initializeHandler(event:FlexEvent):void
 			{
 				var result:Array = sql.execute("select ver from version where id=1");
@@ -60,6 +62,12 @@
 						dbName = String(config.db_name[0]);
 						syncServer = String(config.sync_server[0]);
 						syncPassword = String(config.password[0]);
+						libPath = String(config.lib_path[0]);
+						var file:File = File.applicationDirectory.resolvePath(libPath);
+						if(!file.exists||!file.isDirectory)
+							libPath = "library"+File.separator;
+						else
+							libPath = file.nativePath+File.separator;
 					}
 					catch(e:Error){}
 				}
@@ -283,7 +291,7 @@
 				}
 				else
 				{
-					var file:File = File.applicationDirectory.resolvePath("artists/"+currentSong.artist+".jpg");
+					var file:File = File.applicationDirectory.resolvePath(getArsitPath(currentSong));
 					if(file.exists)
 					{
 						cover.source = file.nativePath;
@@ -325,12 +333,16 @@
 			{
 				if(curlLoader.loadedBytes.length>1024)
 				{
-					var path:String = "artists/"+currentSong.artist+".jpg";
+					var path:String = getArsitPath(currentSong);
 					FileUtil.save(path,curlLoader.loadedBytes);
 					cover.source = path;
 				}
 			}
 			
+			private function getArsitPath(song:Object):String
+			{
+				return libPath+"artists\\"+FileUtil.escape(song.artist+".jpg");
+			}
 			
 			private function getCoverPath(song:Object):String
 			{
@@ -339,7 +351,7 @@
 					path += song.artist;
 				if(song.album)
 					path += " - "+song.album;
-				path = "covers/"+path+".jpg";
+				path = libPath+"covers\\"+FileUtil.escape(path+".jpg");
 				return path;
 			}
 			
@@ -376,9 +388,16 @@
 				if(isNaN(minCount))
 					minCount = 0;
 				if(playILike)
-					result = sql.execute("select * from song where count="+minCount+" and favor=1 order by random() limit 1;");
+					result= sql.execute("select  Min(skip) as skip From  song where favor=1");
 				else
-					result = sql.execute("select * from song where count="+minCount+" and favor<>-1 order by random() limit 1;");
+					result= sql.execute("select  Min(skip) as skip From  song");
+				var minSkip:Number = Number(result[0].skip);
+				if(isNaN(minSkip))
+					minSkip = 0;
+				if(playILike)
+					result = sql.execute("select * from song where count="+minCount+" and skip="+minSkip+" and favor=1 order by random() limit 1;");
+				else
+					result = sql.execute("select * from song where count="+minCount+" and skip="+minSkip+" and favor<>-1 order by random() limit 1;");
 				if(result)
 					return result[0];
 				return null;

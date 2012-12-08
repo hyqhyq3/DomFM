@@ -1,5 +1,8 @@
 <root>
-	<sync_server>http://localhost/DomFM/sync.php</sync_server>
-	<db_name>dom</db_name>
-	<password>domlib</password>
+	<!-- 将目录下的sync.php放到你自己的服务器上，然后配置好正确的同步地址，就能实现在不同电脑之间同步音乐数据库 -->
+	<sync_server>http://localhost/DomFM/sync.php</sync_server><!-- 数据库同步地址 -->
+	<db_name>dom</db_name><!-- 数据库名称 -->
+	<password>domlib</password><!-- 同步脚本的密码 -->
+
+	<lib_path>library</lib_path><!-- 存储下载的图片和音乐的路径,可以写绝对路径 -->
 </root>
