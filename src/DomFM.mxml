@@ -214,8 +214,6 @@
 			
 			private var player:Player;
 			
-			private var failTimes:int = 0;
-			
 			private var currentSong:Object;
 			
 			private var isPlaying:Boolean = true;
@@ -232,47 +230,95 @@
 					player.addEventListener(PlayEvent.PLAY_COMPLETE,onPlayComp);
 					player.addEventListener(PlayEvent.PLAY_PROGRESS,onPlayProgress);
 					player.addEventListener(PlayEvent.PLAY_ERROR,onPlayError);
+					player.addEventListener(PlayEvent.LOAD_COMPLETE,onBytesLoadComp);
 				}
 				var song:Object = getSongByRandom();
-				if(song&&song.url)
+				if(song)
 				{
+					currentSong = song;
 					var url:String = getPortableUrl(song.url);
 					if(!url)
 					{
-						isPlaying = false;
-						failTimes++;
-						if(failTimes<10)
+						if(song.qqid&&song.qqid!="0")
 						{
-							playNext();
+							playByQQId(song.qqid);
 						}
-						return;
-					}
-					currentSong = song;
-					failTimes = 0;
-					isPlaying = true;
-					countAdded = false;
-					player.playSong(url);
-					var file:File = File.applicationDirectory.resolvePath(getCoverPath(song));
-					if(file.exists)
-					{
-						cover.source = file.nativePath;
+						else
+						{
+							qqMusic.searchSong(song.artist,song.title,onSearchSongComp);
+						}
 					}
 					else
 					{
-						qqMusic.searchCover(song.artist,song.title,onCoverUrlComp);
-						cover.source = null;
+						player.playSong(url);
+						updateAfterPlaySong();
 					}
-					favorBtn.selected = (song.favor=="1");
-					titleLabel.text = song.title+" - "+song.artist;
-					title = song.title+" - DomFM";
-					if(favorBtn.selected)
-						title = "❤"+title;
-					timeLabel.text = " 00:00";
 				}
 				else
 				{
 					isPlaying = false;
 				}
+			}
+			
+			private function onBytesLoadComp(event:PlayEvent):void
+			{
+				if(!currentSong||!event.bytes||event.bytes.length<1048576)
+					return;
+				var path:String = getSongPath(currentSong);
+				if(!path)
+					return;
+				FileUtil.save(path,event.bytes);
+			}
+			
+			private function onSearchSongComp(songList:Array):void
+			{
+				if(!currentSong)
+					return;
+				if(songList.length==0)
+				{
+					playNext();
+					return;
+				}
+				var song:Object = songList[0];
+				var qqid:String = song.id+song.location;
+				currentSong.qqid = qqid;
+				currentSong.length = int(song.length)*1000;
+				sql.execute("update song set qqid = '"+qqid+"' where id='"+currentSong.id+"';");
+				playByQQId(qqid);
+			}
+			
+			private function playByQQId(qqid:String):void
+			{
+				if(!qqid)
+					return;
+				var url:String = getSongPath(currentSong);
+				var file:File = File.applicationDirectory.resolvePath(url);
+				if(!file.exists)
+					url = qqMusic.getSongUrl(qqid.substring(0,qqid.length-1),qqid.substring(qqid.length-1));
+				player.playSong(url);
+				updateAfterPlaySong();
+			}
+			
+			private function updateAfterPlaySong():void
+			{
+				isPlaying = true;
+				countAdded = false;
+				var file:File = File.applicationDirectory.resolvePath(getCoverPath(currentSong));
+				if(file.exists)
+				{
+					cover.source = file.nativePath;
+				}
+				else
+				{
+					qqMusic.searchCover(currentSong.artist,currentSong.title,onCoverUrlComp);
+					cover.source = null;
+				}
+				favorBtn.selected = (currentSong.favor=="1");
+				titleLabel.text = currentSong.title+" - "+currentSong.artist;
+				title = currentSong.title+" - DomFM";
+				if(favorBtn.selected)
+					title = "❤"+title;
+				timeLabel.text = " 00:00";
 			}
 			
 			private var curlLoader:CurlLoader;
@@ -355,6 +401,13 @@
 				return path;
 			}
 			
+			private function getSongPath(song:Object):String
+			{
+				if(!song.qqid)
+					return "";
+				return libPath+"musics\\"+song.qqid+".mp3";
+			}
+			
 			private var driverLetters:Array = ["C","D","E","F","G","H","I","J","K","L"];
 			
 			private function getPortableUrl(url:String):String
@@ -414,7 +467,12 @@
 					sql.execute("update song set count = count+1 where url='"+SQL.escape(event.url)+"';");
 					countAdded = true;
 				}
-				timeLabel.text = StringUtil.toTimeString(event.playedTime-event.totalTime);
+				var totalTime:Number;
+				if(currentSong.length)
+					totalTime = currentSong.length;
+				else
+					totalTime = event.totalTime;
+				timeLabel.text = StringUtil.toTimeString(event.playedTime-totalTime);
 			}
 			/**
 			 * 一首歌播放完成
@@ -526,9 +584,9 @@
 				}
 				var file:File = new File(event.url);
 				var type:String = file.extension;
-				sql.execute("insert into song (title,artist,album,url,type,favor,count,skip) values('"+
-					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(id3.album)+"','"+SQL.escape(event.url)+"','"+
-					SQL.escape(type)+"',0,0,0);");
+				sql.execute("insert into song (title,artist,album,url,qqid,favor,count,skip) values('"+
+					SQL.escape(id3.title)+"','"+SQL.escape(id3.artist)+"','"+SQL.escape(id3.album)+"','"+
+					SQL.escape(event.url)+"',0,0,0,0);");
 				if(!isPlaying)
 					playNext();
 				title = "正在导入："+file.name;
@@ -584,7 +642,8 @@
 				menuItem.addEventListener(Event.SELECT,addBtn_clickHandler);
 				menu.addItem(menuItem);
 				contextMenu = menu;
-				playNext();
+				if(!isPlaying)
+					playNext();
 			}
 			
 			protected function windowedapplication1_windowMoveHandler(event:FlexNativeWindowBoundsEvent):void

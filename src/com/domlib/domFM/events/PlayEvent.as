@@ -1,6 +1,7 @@
 package com.domlib.domFM.events
 {
 	import flash.events.Event;
+	import flash.utils.ByteArray;
 	
 	
 	/**
@@ -22,6 +23,10 @@ package com.domlib.domFM.events
 		 */		
 		public static const PLAY_ERROR:String = "playError";
 		/**
+		 * 加载完成事件
+		 */		
+		public static const LOAD_COMPLETE:String = "loadComplete";
+		/**
 		 * 构造函数
 		 */		
 		public function PlayEvent(type:String, bubbles:Boolean=false, cancelable:Boolean=false)
@@ -40,5 +45,9 @@ package com.domlib.domFM.events
 		 * 正在播放的音乐路径
 		 */		
 		public var url:String;
+		/**
+		 * 通过网络下载的音乐二进制数据
+		 */		
+		public var bytes:ByteArray;
 	}
 }

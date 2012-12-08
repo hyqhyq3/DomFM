@@ -4,11 +4,14 @@ package com.domlib.domFM.action
 	
 	import flash.events.Event;
 	import flash.events.EventDispatcher;
+	import flash.events.ProgressEvent;
 	import flash.events.TimerEvent;
 	import flash.media.Sound;
 	import flash.media.SoundChannel;
 	import flash.net.URLRequest;
+	import flash.utils.ByteArray;
 	import flash.utils.Timer;
+
 	/**
 	 * 播放完成
 	 */	
@@ -21,6 +24,10 @@ package com.domlib.domFM.action
 	 * 播放失败
 	 */	
 	[Event(name="playError",type="com.domlib.domFM.events.PlayEvent")]
+	/**
+	 * 当通过网络播放时，加载完成字节流后抛出此事件
+	 */	
+	[Event(name="loadComplete",type="com.domlib.domFM.events.PlayEvent")]
 	/**
 	 * 播放器
 	 * @author DOM
@@ -43,7 +50,7 @@ package com.domlib.domFM.action
 			if(!sc||sc.position==0)
 			{
 				count++;
-				if(count>10)
+				if((!curLoader&&count>10)||count>30)
 				{
 					count = 0;
 					timer.stop();
@@ -80,8 +87,15 @@ package com.domlib.domFM.action
 			if(sc)
 			{
 				sc.removeEventListener(Event.SOUND_COMPLETE,onPlayComp);
+				sc.removeEventListener(Event.SOUND_COMPLETE,reloadBytes);
 				sc.stop();
 				sc = null;
+			}
+			if(curLoader)
+			{
+				curLoader.removeEventListener(ProgressEvent.PROGRESS,reloadBytes);
+				curLoader.removeEventListener(Event.COMPLETE,onBytesComp);
+				curLoader = null;
 			}
 			if(timer.running)
 				timer.stop();
@@ -100,6 +114,78 @@ package com.domlib.domFM.action
 			exit();
 			if(!url)
 				return;
+			if(url.substr(0,7)=="http://")
+			{
+				playHttp(url);
+			}
+			else
+			{
+				playLocal(url);
+			}
+		}
+		
+		private var curLoader:CurlLoader;
+		
+		private function playHttp(url:String):void
+		{
+			pos = 0;
+			curLoader = new CurlLoader();
+			curLoader.addEventListener(ProgressEvent.PROGRESS,reloadBytes);
+			curLoader.addEventListener(Event.COMPLETE,onBytesComp);
+			curLoader.load(url);
+		}
+		/**
+		 * 字节流全部加载完成
+		 */		
+		private function onBytesComp(event:Event):void
+		{
+			if(!curLoader)
+				return;
+			var e:PlayEvent = new PlayEvent(PlayEvent.LOAD_COMPLETE);
+			e.url = currentPath;
+			e.bytes = curLoader.loadedBytes;
+			dispatchEvent(e);
+		}
+		
+		private var pos:int = 0;
+		/**
+		 * 重新加载字节流
+		 */		
+		private function reloadBytes(event:Event=null):void
+		{
+			if(event.type == ProgressEvent.PROGRESS)
+				curLoader.removeEventListener(ProgressEvent.PROGRESS,reloadBytes);
+			if(!curLoader)
+				return;
+			if(pos==0)
+				sound = new Sound();
+			var bytes:ByteArray = curLoader.loadedBytes;
+			bytes.position = pos;
+			if(bytes.bytesAvailable==0)
+			{
+				if(curLoader.complete)
+				{
+					onPlayComp();
+				}
+				else
+				{
+					curLoader.addEventListener(ProgressEvent.PROGRESS,reloadBytes);
+					if(timer.running)
+						timer.stop();
+				}
+				return;
+			}
+			sound.loadCompressedDataFromByteArray(bytes,bytes.length-pos);
+			pos = bytes.length;
+			sc = sound.play(sc?sc.position:0);
+			if(sc)
+				sc.addEventListener(Event.SOUND_COMPLETE,reloadBytes);
+			if(!timer.running)
+				timer.start();
+		}
+		
+		private function playLocal(url:String):void
+		{
 			sound = new Sound(new URLRequest(url));
 			sc = sound.play();
 			if(sc)
@@ -140,7 +226,7 @@ package com.domlib.domFM.action
 		/**
 		 * 播放完成
 		 */		
-		private function onPlayComp(event:Event):void
+		private function onPlayComp(event:Event=null):void
 		{
 			if(timer.running)
 				timer.stop();

@@ -42,6 +42,7 @@ package com.domlib.domFM.action
 		public function load(url:String):void
 		{
 			_url = url;
+			_complete = false;
 			_loadedBytes = new ByteArray();
 			if(!nativeProcess)
 			{
@@ -87,11 +88,21 @@ package com.domlib.domFM.action
 			return _url;
 		}
 
+		private var _complete:Boolean = false;
+		/**
+		 * 已经加载完成的标志
+		 */
+		public function get complete():Boolean
+		{
+			return _complete;
+		}
+
 		/**
 		 * 下载完成
 		 */		
 		private function onComp(event:NativeProcessExitEvent):void
 		{
+			_complete = true;
 			nativeProcess.removeEventListener(NativeProcessExitEvent.EXIT,onComp);
 			var evt:Event = new Event(Event.COMPLETE);
 			dispatchEvent(evt);
