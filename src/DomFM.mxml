@@ -311,7 +311,7 @@
 				}
 				else
 				{
-					qqMusic.searchCover(currentSong.artist,currentSong.title,onCoverUrlComp);
+					qqMusic.searchCover(currentSong.artist,currentSong.album,onCoverUrlComp);
 					cover.source = null;
 				}
 				favorBtn.selected = (currentSong.favor=="1");
