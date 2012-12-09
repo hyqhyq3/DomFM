@@ -70,23 +70,51 @@ package com.domlib.domFM.action
 				albumId = list[0].id;
 			else if(list.length>1)
 			{
-				var found:Boolean = false;
+				var albumName:String = trimMiddle(song.album);
 				for each(var album:Object in list)
 				{
-					if(album.name == song.album)
+					if(compare(album.name,albumName))
 					{
 						albumId = album.id;
-						found = true
 						break;
 					}
 				}
-				if(!found)
+			}
+			var url:String;
+			if(albumId)
+				url = getCoverUrl(albumId);
+			compFunc(url);
+		}
+		/**
+		 * 比较字符串是否相似
+		 */		
+		private function compare(strA:String,strB:String):Boolean
+		{
+			if(strA==strB)
+			{
+				return true;
+			}
+			strA = trimMiddle(strA);
+			if(strA.indexOf(strB)!=-1)
+				return true;
+			return false
+		}
+		/**
+		 * 去除多余的空格
+		 */		
+		private function trimMiddle(str:String):String
+		{
+			var strs:Array = str.split(" ");
+			for(var i:int=0;i<strs.length;i++)
+			{
+				var str:String = strs[i];
+				if(str==" "||str=="")
 				{
-					albumId = list[list.length-1].id;
+					strs.splice(i,1);
+					i--;
 				}
 			}
-			var url:String = getCoverUrl(albumId);
-			compFunc(url);
+			return strs.join("");
 		}
 		/**
 		 * 根据loader返回字符串结果

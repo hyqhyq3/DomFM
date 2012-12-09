@@ -323,6 +323,7 @@
 			}
 			
 			private var curlLoader:CurlLoader;
+			
 			private function onCoverUrlComp(url:String):void
 			{
 				if(!currentSong)
@@ -332,8 +333,8 @@
 					if(!curlLoader)
 					{
 						curlLoader = new CurlLoader();
-						curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded)
 					}
+					curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded);
 					curlLoader.load(url);
 				}
 				else
@@ -353,6 +354,7 @@
 			
 			private function onCoverLoaded(event:Event):void
 			{
+				curlLoader.removeEventListener(Event.COMPLETE,onCoverLoaded);
 				if(curlLoader.loadedBytes.length>1024)
 				{
 					var path:String = getCoverPath(currentSong);
@@ -370,14 +372,15 @@
 					if(!curlLoader)
 					{
 						curlLoader = new CurlLoader();
-						curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded)
 					}
+					curlLoader.addEventListener(Event.COMPLETE,onArtistLoaded)
 					curlLoader.load(url);
 				}
 			}
 			
 			private function onArtistLoaded(event:Event):void
 			{
+				curlLoader.removeEventListener(Event.COMPLETE,onArtistLoaded);
 				if(curlLoader.loadedBytes.length>1024)
 				{
 					var path:String = getArsitPath(currentSong);
