@@ -804,7 +804,7 @@
 				var file:File;
 				try
 				{
-					file = File.applicationDirectory.resolvePath(getCoverPath(currentSong));
+					file = File.applicationDirectory.resolvePath(cover.source as String);
 				}
 				catch(e:Error)
 				{
