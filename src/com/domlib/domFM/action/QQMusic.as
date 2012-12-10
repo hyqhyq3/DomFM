@@ -41,13 +41,13 @@ package com.domlib.domFM.action
 		 * @param album 专辑名
 		 * @param compFunc 搜索结果回调函数,示例：compFunc(url:String):void
 		 */		
-		public function searchCover(artist:String,album:String,compFunc:Function):void
+		public function searchCover(artist:String,album:String,compFunc:Function,arg:Object):void
 		{
 			if((!artist&&!album)||compFunc==null)
 				return;
 			var loader:URLLoader = new URLLoader;
 			compFuncDic[loader] = compFunc;
-			keyWordDic[loader] = {artist:artist,album:album};
+			keyWordDic[loader] = {artist:artist,album:album,arg:arg};
 			loader.dataFormat = URLLoaderDataFormat.BINARY;
 			loader.addEventListener(Event.COMPLETE,onAlbumComp);
 			loader.load(new URLRequest(encodeURI(albumUrl+artist+" "+album)));
@@ -83,7 +83,7 @@ package com.domlib.domFM.action
 			var url:String;
 			if(albumId)
 				url = getCoverUrl(albumId);
-			compFunc(url);
+			compFunc(url,song.arg);
 		}
 		/**
 		 * 比较字符串是否相似
@@ -132,12 +132,13 @@ package com.domlib.domFM.action
 		 * @param artist 歌手姓名
 		 * @param compFunc 搜索结果回调函数,示例：compFunc(url:String):void
 		 */		
-		public function searchArtist(artist:String,compFunc:Function):void
+		public function searchArtist(artist:String,compFunc:Function,arg:Object):void
 		{
 			if(!artist||compFunc==null)
 				return;
 			var loader:URLLoader = new URLLoader;
 			compFuncDic[loader] = compFunc;
+			keyWordDic[loader] = {artist:artist,arg:arg};
 			loader.dataFormat = URLLoaderDataFormat.BINARY;
 			loader.addEventListener(Event.COMPLETE,onArtistComp);
 			loader.load(new URLRequest(encodeURI(artistUrl+artist)));
@@ -151,6 +152,8 @@ package com.domlib.domFM.action
 			var result:String = getResult(loader);
 			var compFunc:Function = compFuncDic[loader];
 			delete compFuncDic[loader];
+			var song:Object = keyWordDic[loader];
+			delete keyWordDic[loader];
 			var artistId:String = "";
 			var index:int = result.indexOf("list:[{");
 			if(index!=-1)
@@ -162,7 +165,7 @@ package com.domlib.domFM.action
 				artistId = result.substring(0,index);
 			}
 			var url:String = getArtsitUrl(artistId);
-			compFunc(url);
+			compFunc(url,song.arg);
 		}
 		/**
 		 * 解析字符串为专辑列表
@@ -201,12 +204,13 @@ package com.domlib.domFM.action
 		 * @param title 歌曲名
 		 * @param compFunc 搜索结果回调函数,示例：compFunc(songList:Array):void
 		 */		
-		public function searchSong(artist:String,title:String,compFunc:Function):void
+		public function searchSong(artist:String,title:String,compFunc:Function,arg:Object):void
 		{
 			if(!title||compFunc==null)
 				return;
 			var loader:URLLoader = new URLLoader;
 			compFuncDic[loader] = compFunc;
+			keyWordDic[loader] = arg;
 			loader.dataFormat = URLLoaderDataFormat.BINARY;
 			loader.addEventListener(Event.COMPLETE,onSongComp);
 			loader.load(new URLRequest(encodeURI(artistUrl+artist+" "+title)));
@@ -221,6 +225,8 @@ package com.domlib.domFM.action
 			var result:String = getResult(loader);
 			var compFunc:Function = compFuncDic[loader];
 			delete compFuncDic[loader];
+			var arg:Object = keyWordDic[loader];
+			delete keyWordDic[loader];
 			var artistId:String = "";
 			var songList:Array = [];
 			var index:int = result.indexOf("list:[{");
@@ -241,7 +247,7 @@ package com.domlib.domFM.action
 						songList.push(song);
 				}
 			}
-			compFunc(songList);
+			compFunc(songList,arg);
 		}
 		
 		private var keyList:Array = ["id","title","artistId","artist","albumId","album","","length","location"];

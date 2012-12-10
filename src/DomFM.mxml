@@ -246,7 +246,7 @@
 						}
 						else
 						{
-							qqMusic.searchSong(song.artist,song.title,onSearchSongComp);
+							qqMusic.searchSong(song.artist,song.title,onSearchSongComp,currentSong);
 						}
 					}
 					else
@@ -271,9 +271,9 @@
 				FileUtil.save(path,event.bytes);
 			}
 			
-			private function onSearchSongComp(songList:Array):void
+			private function onSearchSongComp(songList:Array,arg:Object):void
 			{
-				if(!currentSong)
+				if(arg!=currentSong)
 					return;
 				if(songList.length==0)
 				{
@@ -311,7 +311,7 @@
 				}
 				else
 				{
-					qqMusic.searchCover(currentSong.artist,currentSong.album,onCoverUrlComp);
+					qqMusic.searchCover(currentSong.artist,currentSong.album,onCoverUrlComp,currentSong);
 					cover.source = null;
 				}
 				favorBtn.selected = (currentSong.favor=="1");
@@ -324,9 +324,9 @@
 			
 			private var curlLoader:CurlLoader;
 			
-			private function onCoverUrlComp(url:String):void
+			private function onCoverUrlComp(url:String,arg:Object):void
 			{
-				if(!currentSong)
+				if(arg!=currentSong)
 					return;
 				if(url)
 				{
@@ -335,6 +335,7 @@
 						curlLoader = new CurlLoader();
 					}
 					curlLoader.addEventListener(Event.COMPLETE,onCoverLoaded);
+					curlLoader.arg =  currentSong;
 					curlLoader.load(url);
 				}
 				else
@@ -346,7 +347,7 @@
 					}
 					else
 					{
-						qqMusic.searchArtist(currentSong.artist,onArtistUrlComp);
+						qqMusic.searchArtist(currentSong.artist,onArtistUrlComp,currentSong);
 						cover.source = null;
 					}
 				}
@@ -357,15 +358,16 @@
 				curlLoader.removeEventListener(Event.COMPLETE,onCoverLoaded);
 				if(curlLoader.loadedBytes.length>1024)
 				{
-					var path:String = getCoverPath(currentSong);
+					var path:String = getCoverPath(curlLoader.arg);
 					FileUtil.save(path,curlLoader.loadedBytes);
-					cover.source = path;
+					if(curlLoader.arg==currentSong)
+						cover.source = path;
 				}
 			}
 			
-			private function onArtistUrlComp(url:String):void
+			private function onArtistUrlComp(url:String,arg:Object):void
 			{
-				if(!currentSong)
+				if(arg!=currentSong)
 					return;
 				if(url)
 				{
@@ -373,7 +375,8 @@
 					{
 						curlLoader = new CurlLoader();
 					}
-					curlLoader.addEventListener(Event.COMPLETE,onArtistLoaded)
+					curlLoader.addEventListener(Event.COMPLETE,onArtistLoaded);
+					curlLoader.arg =  currentSong;
 					curlLoader.load(url);
 				}
 			}
@@ -383,9 +386,10 @@
 				curlLoader.removeEventListener(Event.COMPLETE,onArtistLoaded);
 				if(curlLoader.loadedBytes.length>1024)
 				{
-					var path:String = getArsitPath(currentSong);
+					var path:String = getArsitPath(curlLoader.arg);
 					FileUtil.save(path,curlLoader.loadedBytes);
-					cover.source = path;
+					if(curlLoader.arg==currentSong)
+						cover.source = path;
 				}
 			}
 			
