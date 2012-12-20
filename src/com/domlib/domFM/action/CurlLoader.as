@@ -37,6 +37,12 @@ package com.domlib.domFM.action
 		
 		private var startInfo:NativeProcessStartupInfo;
 		/**
+		 * 附加参数
+		 */		
+		public var arg:Object;
+		
+
+		/**
 		 * 开始下载
 		 */		
 		public function load(url:String):void
