@@ -599,7 +599,8 @@
 				var result:Array = sql.execute("select url from song");
 				for each(var song:Object in result)
 				{
-					songList.push(song.url.substr(3));
+					if(song.url)
+						songList.push(song.url.substr(3));
 				}
 				for each(var file:File in list)
 				{
